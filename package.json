@@ -1,0 +1,19 @@
+{
+  "name": "omnisearch",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Universal multi-provider web search: MCP server + native plugin wrappers for OpenCode and Kilocode",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -p packages/mcp-server && tsc -p packages/shared",
+    "typecheck": "tsc -p packages/mcp-server && tsc --noEmit -p packages/shared",
+    "test": "cd packages/mcp-server && bun test",
+    "clean": "git clean -fdx -e .superpowers -e node_modules"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.6.0"
+  }
+}

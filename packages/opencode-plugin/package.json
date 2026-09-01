@@ -1,0 +1,13 @@
+{
+  "name": "omnisearch-opencode",
+  "version": "0.1.0",
+  "description": "Omnisearch multi-provider web search plugin for OpenCode",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "MIT"
+}

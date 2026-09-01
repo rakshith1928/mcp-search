@@ -1,0 +1,20 @@
+{
+  "name": "@omnisearch/shared",
+  "version": "0.1.0",
+  "description": "Shared native plugin logic for omnisearch agent plugins (OpenCode, Kilocode)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@omnisearch/mcp-server": "workspace:*"
+  },
+  "license": "MIT"
+}
