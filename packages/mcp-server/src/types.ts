@@ -59,4 +59,10 @@ export interface SearchResponse {
   cached: boolean;
   /** Wall-clock duration of the search in milliseconds (0 for cache hits). */
   elapsedMs: number;
+  /** Present on parallel responses: the mode that produced them. */
+  mode?: "single" | "parallel";
+  /** Parallel mode: every participant attempted, in resolution order. */
+  providers?: ProviderName[];
+  /** Parallel mode: participants whose search failed. */
+  failedProviders?: ProviderName[];
 }

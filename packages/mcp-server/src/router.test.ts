@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createRouter, type RouterConfig } from "./router.js";
-import type { SearchProvider } from "./types.js";
+import type { SearchProvider, SearchResult } from "./types.js";
 
 function fakeProvider(name: SearchProvider["name"], resultCount = 2): SearchProvider {
   return {
@@ -287,5 +287,203 @@ describe("createRouter chain override", () => {
 
     expect(braveCalls).toBe(1);
     expect(openaiCalls).toBe(1);
+  });
+});
+
+describe("createRouter parallel mode", () => {
+  function fakeProvider(name: SearchProvider["name"], results: SearchResult[]): SearchProvider {
+    return { name, search: async () => results };
+  }
+
+  const b1: SearchResult = { title: "b1", url: "https://b.example.com/1", snippet: "" };
+  const b2: SearchResult = { title: "b2", url: "https://b.example.com/2", snippet: "" };
+  const o1: SearchResult = { title: "o1", url: "https://o.example.com/1", snippet: "" };
+  const o2: SearchResult = { title: "o2", url: "https://o.example.com/2", snippet: "" };
+
+  test("fans out to every participant and merges round-robin", async () => {
+    const router = createRouter({
+      primary: "brave",
+      parallelParticipants: ["brave", "openai"],
+      providers: { brave: fakeProvider("brave", [b1, b2]), openai: fakeProvider("openai", [o1, o2]) },
+    });
+
+    const response = await router.search("q", {}, undefined, true);
+
+    expect(response.mode).toBe("parallel");
+    expect(response.providers).toEqual(["brave", "openai"]);
+    expect(response.failedProviders).toEqual([]);
+    expect(response.provider).toBe("brave");
+    expect(response.results).toEqual([b1, o1, b2, o2]);
+    expect(response.markdown).toContain("(via parallel: brave, openai)");
+  });
+
+  test("dedupes by URL keeping the first occurrence", async () => {
+    const dupe: SearchResult = { title: "dupe", url: "https://b.example.com/1", snippet: "" };
+    const router = createRouter({
+      primary: "brave",
+      parallelParticipants: ["brave", "openai"],
+      providers: { brave: fakeProvider("brave", [b1]), openai: fakeProvider("openai", [dupe, o2]) },
+    });
+
+    const response = await router.search("q", {}, undefined, true);
+
+    expect(response.results).toEqual([b1, o2]);
+  });
+
+  test("caps merged results at maxResults", async () => {
+    const router = createRouter({
+      primary: "brave",
+      parallelParticipants: ["brave", "openai"],
+      providers: {
+        brave: fakeProvider("brave", [b1, b2, { title: "b3", url: "https://b.example.com/3", snippet: "" }]),
+        openai: fakeProvider("openai", [o1, o2, { title: "o3", url: "https://o.example.com/3", snippet: "" }]),
+      },
+    });
+
+    const response = await router.search("q", { maxResults: 3 }, undefined, true);
+
+    expect(response.results).toEqual([b1, o1, b2]);
+  });
+
+  test("reports failed participants and keeps successful results", async () => {
+    const router = createRouter({
+      primary: "brave",
+      parallelParticipants: ["brave", "openai"],
+      providers: { brave: failingProvider("brave", "down"), openai: fakeProvider("openai", [o1]) },
+    });
+
+    const response = await router.search("q", {}, undefined, true);
+
+    expect(response.failedProviders).toEqual(["brave"]);
+    expect(response.providers).toEqual(["brave", "openai"]);
+    expect(response.results).toEqual([o1]);
+    expect(response.markdown).toContain("Note: 1 provider(s) failed: brave");
+  });
+
+  test("throws the combined error when every participant fails", async () => {
+    const router = createRouter({
+      primary: "brave",
+      parallelParticipants: ["brave", "openai"],
+      providers: { brave: failingProvider("brave", "down"), openai: failingProvider("openai", "also down") },
+    });
+
+    expect(router.search("q", {}, undefined, true)).rejects.toThrow(/All search providers failed/);
+  });
+
+  test("caches per participant and the merged response", async () => {
+    let braveCalls = 0;
+    let openaiCalls = 0;
+    const counting = (name: SearchProvider["name"], counter: () => void): SearchProvider => ({
+      name,
+      search: async () => {
+        counter();
+        return name === "brave" ? [b1] : [o1];
+      },
+    });
+    const router = createRouter({
+      primary: "brave",
+      parallelParticipants: ["brave", "openai"],
+      providers: {
+        brave: counting("brave", () => {
+          braveCalls += 1;
+        }),
+        openai: counting("openai", () => {
+          openaiCalls += 1;
+        }),
+      },
+    });
+
+    await router.search("q", {}, undefined, true);
+    await router.search("q", {}, undefined, true);
+    await router.search("q");
+
+    expect(braveCalls).toBe(1);
+    expect(openaiCalls).toBe(1);
+  });
+
+  test("config parallelParticipants take priority over the env presence scan", async () => {
+    const prev = process.env.BRAVE_API_KEY;
+    process.env.BRAVE_API_KEY = "env-key";
+    try {
+      let braveCalls = 0;
+      let openaiCalls = 0;
+      const router = createRouter({
+        primary: "brave",
+        parallelParticipants: ["openai"],
+        providers: {
+          brave: {
+            name: "brave",
+            search: async () => {
+              braveCalls += 1;
+              return [b1];
+            },
+          },
+          openai: {
+            name: "openai",
+            search: async () => {
+              openaiCalls += 1;
+              return [o1];
+            },
+          },
+        },
+      });
+
+      const response = await router.search("q", {}, undefined, true);
+
+      expect(response.providers).toEqual(["openai"]);
+      expect(openaiCalls).toBe(1);
+      expect(braveCalls).toBe(0);
+    } finally {
+      if (prev === undefined) delete process.env.BRAVE_API_KEY;
+      else process.env.BRAVE_API_KEY = prev;
+    }
+  });
+
+  test("without explicit participants, scans env presence", async () => {
+    const prevBrave = process.env.BRAVE_API_KEY;
+    const prevOpenai = process.env.OPENAI_API_KEY;
+    delete process.env.BRAVE_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "env-key";
+    try {
+      const router = createRouter({
+        primary: "brave",
+        providers: { openai: fakeProvider("openai", [o1]) },
+      });
+
+      const response = await router.search("q", {}, undefined, true);
+
+      expect(response.providers).toEqual(["openai"]);
+      expect(response.results).toEqual([o1]);
+    } finally {
+      if (prevBrave !== undefined) process.env.BRAVE_API_KEY = prevBrave;
+      else delete process.env.BRAVE_API_KEY;
+      if (prevOpenai !== undefined) process.env.OPENAI_API_KEY = prevOpenai;
+      else delete process.env.OPENAI_API_KEY;
+    }
+  });
+
+  test("falls back to single search when no participants resolve", async () => {
+    const prevBrave = process.env.BRAVE_API_KEY;
+    const prevOpenai = process.env.OPENAI_API_KEY;
+    delete process.env.BRAVE_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    try {
+      const router = createRouter({
+        primary: "brave",
+        providers: { brave: fakeProvider("brave", [b1]) },
+      });
+
+      const response = await router.search("q", {}, undefined, true);
+
+      expect(response.mode).toBeUndefined();
+      expect(response.provider).toBe("brave");
+      expect(response.results).toEqual([b1]);
+    } finally {
+      if (prevBrave !== undefined) process.env.BRAVE_API_KEY = prevBrave;
+      else delete process.env.BRAVE_API_KEY;
+      if (prevOpenai !== undefined) process.env.OPENAI_API_KEY = prevOpenai;
+      else delete process.env.OPENAI_API_KEY;
+    }
   });
 });
