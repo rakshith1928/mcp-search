@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeResults } from "./normalize.js";
+import { appendFailureNote, normalizeResults } from "./normalize.js";
 import type { SearchResult } from "./types.js";
 
 const twoResults: SearchResult[] = [
@@ -55,5 +55,25 @@ describe("normalizeResults", () => {
     expect(markdown).toContain("No results");
     expect(markdown).toContain("obscure query");
     expect(markdown).not.toContain("1. [");
+  });
+});
+
+describe("via label override and failure note", () => {
+  test("uses the via label when provided", () => {
+    const markdown = normalizeResults("q", "brave", twoResults, "parallel: brave, openai");
+    expect(markdown).toContain("(via parallel: brave, openai)");
+    expect(markdown).not.toContain("(via brave)");
+  });
+
+  test("appendFailureNote adds one trailing note line listing failures", () => {
+    const markdown = normalizeResults("q", "brave", twoResults);
+    const noted = appendFailureNote(markdown, ["google", "tavily"]);
+    expect(noted).toContain("Note: 2 provider(s) failed: google, tavily");
+    expect(noted.startsWith(markdown)).toBe(true);
+  });
+
+  test("appendFailureNote returns markdown unchanged when nothing failed", () => {
+    const markdown = normalizeResults("q", "brave", twoResults);
+    expect(appendFailureNote(markdown, [])).toBe(markdown);
   });
 });

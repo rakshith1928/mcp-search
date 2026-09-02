@@ -4,17 +4,19 @@ import { stripHtml } from "./util.js";
 /**
  * Render search results as normalized markdown ready for an LLM context:
  * a `## Web Search Results` section with numbered titled links and snippets,
- * followed by a `## Sources` footer.
+ * followed by a `## Sources` footer. `via` overrides the provider label in
+ * the header (used by parallel mode).
  */
 export function normalizeResults(
   query: string,
   provider: ProviderName,
   results: SearchResult[],
+  via?: string,
 ): string {
   const lines: string[] = [
     "## Web Search Results",
     "",
-    `Query: "${query}" (via ${provider})`,
+    `Query: "${query}" (via ${via ?? provider})`,
     "",
   ];
 
@@ -36,4 +38,13 @@ export function normalizeResults(
   });
 
   return lines.join("\n");
+}
+
+/**
+ * Append the parallel-mode failure note. Returns the input unchanged when
+ * nothing failed.
+ */
+export function appendFailureNote(markdown: string, failed: ProviderName[]): string {
+  if (failed.length === 0) return markdown;
+  return `${markdown}\n\nNote: ${failed.length} provider(s) failed: ${failed.join(", ")}`;
 }

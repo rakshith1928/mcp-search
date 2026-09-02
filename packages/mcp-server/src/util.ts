@@ -48,6 +48,14 @@ export async function loadOptionalSdk<T>(importFn: () => Promise<T>, installHint
   }
 }
 
+/**
+ * Non-throwing check used for parallel participant discovery: true iff the
+ * provider's required env var is set (Google's cx is validated at load).
+ */
+export function hasProviderConfig(provider: ProviderName): boolean {
+  return Boolean(process.env[ENV_BY_PROVIDER[provider]]);
+}
+
 const HTML_ENTITIES: Record<string, string> = {
   amp: "&",
   lt: "<",

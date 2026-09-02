@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { cacheKey, LRUCache } from "./cache.js";
+import { cacheKey, mergedCacheKey, LRUCache } from "./cache.js";
 
 describe("LRUCache", () => {
   test("stores and retrieves values", () => {
@@ -78,6 +78,27 @@ describe("cacheKey", () => {
   test("differs when options differ in value only", () => {
     expect(cacheKey("brave", "typescript", { maxResults: 5 })).not.toBe(
       cacheKey("brave", "typescript", { maxResults: 6 }),
+    );
+  });
+});
+
+describe("mergedCacheKey", () => {
+  test("is deterministic and order-insensitive over participants", () => {
+    expect(mergedCacheKey(["brave", "openai"], "q", { maxResults: 5 })).toBe(
+      mergedCacheKey(["openai", "brave"], "q", { maxResults: 5 }),
+    );
+  });
+
+  test("differs by participant set, query, and options", () => {
+    const base = mergedCacheKey(["brave", "openai"], "q", { maxResults: 5 });
+    expect(base).not.toBe(mergedCacheKey(["brave"], "q", { maxResults: 5 }));
+    expect(base).not.toBe(mergedCacheKey(["brave", "openai"], "other", { maxResults: 5 }));
+    expect(base).not.toBe(mergedCacheKey(["brave", "openai"], "q", { maxResults: 6 }));
+  });
+
+  test("differs from the single-provider cache key", () => {
+    expect(mergedCacheKey(["brave"], "q", { maxResults: 5 })).not.toBe(
+      cacheKey("brave", "q", { maxResults: 5 }),
     );
   });
 });
