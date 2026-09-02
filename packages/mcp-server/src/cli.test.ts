@@ -75,7 +75,7 @@ describe("routerConfigFromEnv", () => {
   });
 
   test("throws on an unknown provider name", () => {
-    expect(() => routerConfigFromEnv({ OMNISEARCH_PROVIDER: "google" })).toThrow(/google/);
+    expect(() => routerConfigFromEnv({ OMNISEARCH_PROVIDER: "exa" })).toThrow(/exa/);
   });
 
   test("throws with the variable name when a cache setting is not numeric", () => {
