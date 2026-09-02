@@ -38,8 +38,12 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
     } else if (arg === "--max") {
       const value = argv[++i];
       const parsed = Number(value);
-      if (!value || !Number.isInteger(parsed) || parsed < 1) {
-        return { ok: false, error: `--max requires a positive integer. ${USAGE}` };
+      const maxCap = 20;
+      if (!value || !Number.isInteger(parsed) || parsed < 1 || parsed > maxCap) {
+        return {
+          ok: false,
+          error: `--max requires an integer between 1 and ${maxCap}. ${USAGE}`,
+        };
       }
       max = parsed;
     } else if (arg.startsWith("--")) {
@@ -53,6 +57,15 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
     return { ok: false, error: `Missing search query. ${USAGE}` };
   }
   return { ok: true, mode: "search", query: words.join(" "), provider, max };
+}
+
+/** Parse a positive-integer env var, throwing a clear error naming the variable. */
+function positiveIntFromEnv(name: string, raw: string): number {
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`Invalid ${name}: '${raw}'. Expected a finite integer >= 1.`);
+  }
+  return value;
 }
 
 /** Build router config from OMNISEARCH_* environment variables. */
@@ -84,9 +97,14 @@ export function routerConfigFromEnv(
     config.fallback = fallback;
   }
 
-  if (env.OMNISEARCH_CACHE_TTL_MS) config.cacheTtlMs = Number(env.OMNISEARCH_CACHE_TTL_MS);
+  if (env.OMNISEARCH_CACHE_TTL_MS) {
+    config.cacheTtlMs = positiveIntFromEnv("OMNISEARCH_CACHE_TTL_MS", env.OMNISEARCH_CACHE_TTL_MS);
+  }
   if (env.OMNISEARCH_CACHE_MAX_ENTRIES) {
-    config.cacheMaxEntries = Number(env.OMNISEARCH_CACHE_MAX_ENTRIES);
+    config.cacheMaxEntries = positiveIntFromEnv(
+      "OMNISEARCH_CACHE_MAX_ENTRIES",
+      env.OMNISEARCH_CACHE_MAX_ENTRIES,
+    );
   }
 
   return config;

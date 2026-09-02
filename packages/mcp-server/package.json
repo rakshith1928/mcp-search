@@ -15,8 +15,7 @@
     "omnisearch": "./dist/index.js"
   },
   "files": [
-    "dist",
-    "README.md"
+    "dist"
   ],
   "scripts": {
     "build": "tsc",

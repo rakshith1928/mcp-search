@@ -38,6 +38,19 @@ describe("parseCliArgs", () => {
     expect(parseCliArgs(["search", "q", "--bogus"]).ok).toBe(false);
     expect(parseCliArgs(["search", "q", "--max", "lots"]).ok).toBe(false);
   });
+
+  test("caps --max at 20", () => {
+    const rejected = parseCliArgs(["search", "q", "--max", "21"]);
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) expect(rejected.error).toContain("20");
+    expect(parseCliArgs(["search", "q", "--max", "20"])).toEqual({
+      ok: true,
+      mode: "search",
+      query: "q",
+      provider: undefined,
+      max: 20,
+    });
+  });
 });
 
 describe("routerConfigFromEnv", () => {
@@ -63,6 +76,35 @@ describe("routerConfigFromEnv", () => {
 
   test("throws on an unknown provider name", () => {
     expect(() => routerConfigFromEnv({ OMNISEARCH_PROVIDER: "google" })).toThrow(/google/);
+  });
+
+  test("throws with the variable name when a cache setting is not numeric", () => {
+    expect(() => routerConfigFromEnv({ OMNISEARCH_CACHE_TTL_MS: "abc" })).toThrow(
+      /OMNISEARCH_CACHE_TTL_MS[\s\S]*'abc'/,
+    );
+    expect(() => routerConfigFromEnv({ OMNISEARCH_CACHE_MAX_ENTRIES: "abc" })).toThrow(
+      /OMNISEARCH_CACHE_MAX_ENTRIES[\s\S]*'abc'/,
+    );
+    expect(() => routerConfigFromEnv({ OMNISEARCH_CACHE_TTL_MS: "Infinity" })).toThrow(
+      /OMNISEARCH_CACHE_TTL_MS/,
+    );
+  });
+
+  test("throws when a cache setting is zero, negative, or fractional", () => {
+    for (const bad of ["0", "-5", "1.5"]) {
+      expect(() => routerConfigFromEnv({ OMNISEARCH_CACHE_TTL_MS: bad })).toThrow(
+        /Expected a finite integer >= 1/,
+      );
+      expect(() => routerConfigFromEnv({ OMNISEARCH_CACHE_MAX_ENTRIES: bad })).toThrow(
+        /Expected a finite integer >= 1/,
+      );
+    }
+  });
+
+  test("parses valid integer cache settings", () => {
+    expect(
+      routerConfigFromEnv({ OMNISEARCH_CACHE_TTL_MS: "250", OMNISEARCH_CACHE_MAX_ENTRIES: "25" }),
+    ).toEqual({ primary: "brave", cacheTtlMs: 250, cacheMaxEntries: 25 });
   });
 });
 

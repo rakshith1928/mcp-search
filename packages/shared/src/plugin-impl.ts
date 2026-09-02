@@ -61,7 +61,7 @@ export function createPluginHooks<TTool>(
     description: OMNISEARCH_TOOL_DESCRIPTION,
     args: omnisearchInputSchema,
     execute: async (args) => {
-      const chain = buildSearchChain(args.provider, router.config.primary, options.fallback);
+      const chain = buildSearchChain(args.provider, router.config.primary, router.config.fallback);
       const response = await router.search(
         args.query,
         { maxResults: args.maxResults ?? options.defaultMaxResults },

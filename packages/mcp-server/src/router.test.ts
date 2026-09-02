@@ -180,6 +180,57 @@ describe("createRouter", () => {
 
     expect(acquisitions).toEqual(["brave", "openai"]);
   });
+
+  test("a provider that fails to load does not acquire its rate limiter", async () => {
+    const { clearProviderCache } = await import("./providers/index.js");
+    const prev = process.env.BRAVE_API_KEY;
+    delete process.env.BRAVE_API_KEY;
+    clearProviderCache();
+    let acquisitions = 0;
+    try {
+      const router = createRouter(
+        config({
+          limiters: {
+            brave: {
+              acquire: async () => {
+                acquisitions += 1;
+              },
+            },
+          },
+        }),
+      );
+
+      await expect(router.search("typescript")).rejects.toThrow(/BRAVE_API_KEY/);
+      expect(acquisitions).toBe(0);
+    } finally {
+      clearProviderCache();
+      if (prev === undefined) delete process.env.BRAVE_API_KEY;
+      else process.env.BRAVE_API_KEY = prev;
+    }
+  });
+
+  test("does not attempt the primary twice when the fallback list includes it", async () => {
+    let braveCalls = 0;
+    const brave: SearchProvider = {
+      name: "brave",
+      search: async () => {
+        braveCalls += 1;
+        throw new Error("HTTP 500");
+      },
+    };
+    const router = createRouter(
+      config({
+        primary: "brave",
+        fallback: ["brave", "openai"],
+        providers: { brave, openai: fakeProvider("openai") },
+      }),
+    );
+
+    const response = await router.search("typescript");
+
+    expect(response.provider).toBe("openai");
+    expect(braveCalls).toBe(1);
+  });
 });
 
 describe("createRouter chain override", () => {

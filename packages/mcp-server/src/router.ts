@@ -48,8 +48,9 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Central search router: cache check → per-provider rate limiting → primary
- * provider with ordered fallback chain → normalized markdown → cache store.
+ * Central search router: cache check → primary provider with ordered fallback
+ * chain (each attempt: resolve provider → acquire rate-limit token → search)
+ * → normalized markdown → cache store.
  */
 export function createRouter(config: RouterConfig) {
   const cache = new LRUCache<CacheValue>({
@@ -106,14 +107,18 @@ export function createRouter(config: RouterConfig) {
       };
     }
 
-    const attemptChain = chain ?? [config.primary, ...(config.fallback ?? [])];
+    const attemptChain =
+      chain ?? [config.primary, ...(config.fallback ?? []).filter((name) => name !== config.primary)];
     const startedAt = Date.now();
     const errors: string[] = [];
 
     for (const name of attemptChain) {
-      await limiterFor(name)?.acquire();
       try {
+        // Resolve the provider before consuming a rate-limit token so that a
+        // provider which fails to load (e.g. missing API key) does not burn a
+        // token, and limiter construction errors join the combined error.
         const provider = await providerFor(name);
+        await limiterFor(name)?.acquire();
         const results = await provider.search(query, options);
         const markdown = normalizeResults(query, name, results);
         const fellBack = name !== effectivePrimary;

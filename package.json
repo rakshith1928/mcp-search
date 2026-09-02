@@ -8,8 +8,8 @@
   ],
   "scripts": {
     "build": "tsc -p packages/mcp-server && tsc -p packages/shared && tsc -p packages/opencode-plugin && tsc -p packages/kilocode-plugin",
-    "typecheck": "tsc -p packages/mcp-server && tsc --noEmit -p packages/shared",
-    "test": "cd packages/mcp-server && bun test",
+    "typecheck": "tsc -p packages/mcp-server && tsc --noEmit -p packages/shared && tsc --noEmit -p packages/opencode-plugin && tsc --noEmit -p packages/kilocode-plugin",
+    "test": "bun test",
     "clean": "git clean -fdx -e .superpowers -e node_modules"
   },
   "devDependencies": {

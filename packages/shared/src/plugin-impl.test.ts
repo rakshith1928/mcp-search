@@ -23,6 +23,13 @@ const fakeOpenai: SearchProvider = {
   search: async () => [{ title: "OpenAI hit", url: "https://example.com/openai", snippet: "Snip" }],
 };
 
+const failingBrave: SearchProvider = {
+  name: "brave",
+  search: async () => {
+    throw new Error("HTTP 429");
+  },
+};
+
 /** Mirrors the platform tool() helpers: records and returns the definition. */
 function identityToolFn(): { calls: OmnisearchToolDefinition[]; fn: OmnisearchToolFn<OmnisearchToolDefinition> } {
   const calls: OmnisearchToolDefinition[] = [];
@@ -99,6 +106,55 @@ describe("createPluginHooks", () => {
     );
 
     const markdown = await hooks.tool[OMNISEARCH_TOOL_NAME].execute({ query: "typescript" }, {});
+
+    expect(markdown).toContain("via openai");
+  });
+
+  test("routerConfig.fallback serves the chain when no provider override is given", async () => {
+    const { fn } = identityToolFn();
+    const hooks = createPluginHooks(
+      {
+        provider: "brave",
+        routerConfig: {
+          fallback: ["openai"],
+          providers: { brave: failingBrave, openai: fakeOpenai },
+        },
+      },
+      fn,
+    );
+
+    const markdown = await hooks.tool[OMNISEARCH_TOOL_NAME].execute({ query: "typescript" }, {});
+
+    expect(markdown).toContain("via openai");
+  });
+
+  test("routerConfig.fallback is honored for per-call provider overrides too", async () => {
+    const { fn } = identityToolFn();
+    const failingMoonshot: SearchProvider = {
+      name: "moonshot",
+      search: async () => {
+        throw new Error("moonshot down");
+      },
+    };
+    const hooks = createPluginHooks(
+      {
+        provider: "brave",
+        routerConfig: {
+          fallback: ["openai"],
+          providers: {
+            brave: fakeBrave,
+            moonshot: failingMoonshot,
+            openai: fakeOpenai,
+          },
+        },
+      },
+      fn,
+    );
+
+    const markdown = await hooks.tool[OMNISEARCH_TOOL_NAME].execute(
+      { query: "typescript", provider: "moonshot" },
+      {},
+    );
 
     expect(markdown).toContain("via openai");
   });
