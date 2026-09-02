@@ -22,12 +22,17 @@ export const omnisearchInputSchema = {
     .enum(["brave", "anthropic", "openai", "moonshot", "tavily", "google", "searxng", "perplexity"])
     .optional()
     .describe("Override the primary provider for this search"),
+  parallel: z
+    .boolean()
+    .optional()
+    .describe("Fan out across all configured providers and merge results"),
 };
 
 export type OmnisearchToolArgs = {
   query: string;
   maxResults?: number;
   provider?: ProviderName;
+  parallel?: boolean;
 };
 
 /**

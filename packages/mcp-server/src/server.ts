@@ -37,9 +37,9 @@ export function createOmnisearchServer(config: Partial<RouterConfig> = {}): {
       description: OMNISEARCH_TOOL_DESCRIPTION,
       inputSchema: omnisearchInputSchema,
     },
-    async ({ query, maxResults, provider }) => {
+    async ({ query, maxResults, provider, parallel }) => {
       const chain = buildSearchChain(provider, router.config.primary, router.config.fallback);
-      const response = await router.search(query, { maxResults }, chain);
+      const response = await router.search(query, { maxResults }, chain, parallel);
       return { content: [{ type: "text", text: response.markdown }] };
     },
   );
