@@ -1,6 +1,6 @@
 {
   "name": "@omnisearch/shared",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Shared native plugin logic for omnisearch agent plugins (OpenCode, Kilocode)",
   "type": "module",
   "main": "./dist/index.js",

@@ -1,6 +1,6 @@
 {
   "name": "@omnisearch/mcp-server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Universal multi-provider web search MCP server \u2014 Brave, Anthropic, OpenAI, Moonshot \u2014 with LRU caching, per-provider rate limiting, and fallback chains",
   "type": "module",
   "main": "./dist/api.js",

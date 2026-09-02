@@ -4,7 +4,8 @@ Universal multi-provider web search for AI coding agents. One MCP server plus
 thin native plugin wrappers for **OpenCode** and **Kilocode** — decoupled from
 the coding model, so **any LLM can search via any provider**.
 
-v1 providers: **Brave**, **Anthropic (Claude)**, **OpenAI**, **Moonshot (Kimi)**.
+v1.1 providers: **Brave**, **Anthropic (Claude)**, **OpenAI**, **Moonshot (Kimi)**,
+**Tavily**, **Google Programmable Search**, **SearXNG**, **Perplexity**.
 
 ## Why not model-bound search
 
@@ -21,6 +22,10 @@ don't involve an LLM at all.
 | **Anthropic** | Full LLM call with `web_search` tool | **Expensive** — a full Claude API call plus search fees |
 | **OpenAI** | Full LLM call with Responses API `web_search` | **Expensive** — a full GPT-4o API call plus tool fees |
 | **Moonshot** | Full LLM call with builtin `$web_search` | **Expensive** — a full Kimi API call |
+| **Tavily** | Pure REST search API | **Cheap** — free tier (~1,000 searches/mo), then per-search pricing |
+| **Google** | Programmable Search JSON API | **Cheap** — 100 free queries/day, then ~$5/1k |
+| **SearXNG** | Self-hosted meta-search | **Free** — you run the instance |
+| **Perplexity** | Full LLM call (sonar) | **Expensive** — a full API call with search included |
 
 **Put Brave first** in your chain and use LLM providers as fallbacks only.
 
@@ -32,9 +37,10 @@ don't involve an LLM at all.
 - Result caching (in-memory LRU + TTL)
 - Provider fallback chains
 - Per-provider rate limiting (token bucket)
+- Parallel multi-provider fan-out with round-robin merging
 - Normalized structured markdown output with a Sources footer
 
-Google, SearXNG, Perplexity, and Tavily are deferred to v1.1.
+All eight providers ship in v1.1 (0.2.0); further providers and platform work (persistent cache, remote transport) are v2 candidates.
 
 ## Packages
 
@@ -92,13 +98,26 @@ omnisearch search "latest typescript release" --provider brave --max 5
 # prints normalized markdown: numbered results + ## Sources
 ```
 
+## Parallel multi-provider search
+
+```bash
+omnisearch search "latest typescript release" --parallel
+```
+
+Fans out to the configured participants (`OMNISEARCH_PARALLEL`, or every
+provider with credentials set), merges results round-robin by provider rank,
+dedupes by URL, and notes any providers that failed. Agents opt in with the
+`parallel` argument on the `omnisearch` tool.
+
 ## Configuration (environment)
 
 | Variable | Meaning | Default |
 |---|---|---|
 | `BRAVE_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `MOONSHOT_API_KEY` | Provider API keys (validated on provider load) | — |
+| `TAVILY_API_KEY` / `GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID` / `SEARXNG_BASE_URL` / `PERPLEXITY_API_KEY` | v1.1 provider credentials/config (validated on provider load) | — |
 | `OMNISEARCH_PROVIDER` | Primary provider | `brave` |
 | `OMNISEARCH_FALLBACK` | Comma-separated fallback chain | — |
+| `OMNISEARCH_PARALLEL` | Comma-separated participants for `--parallel` fan-out; defaults to every provider with credentials set | — |
 | `OMNISEARCH_RATE_LIMIT_<PROVIDER>` | `<limit>/<windowSeconds>`, e.g. `15/60` | brave `15/60`, LLM providers `10/60` |
 | `OMNISEARCH_CACHE_TTL_MS` | Result cache TTL | `300000` |
 | `OMNISEARCH_CACHE_MAX_ENTRIES` | Result cache capacity | `500` |
