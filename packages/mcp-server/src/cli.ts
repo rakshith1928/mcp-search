@@ -102,10 +102,14 @@ export function routerConfigFromEnv(
 
   const parallelRaw = env.OMNISEARCH_PARALLEL;
   if (parallelRaw) {
-    const participants = parallelRaw
-      .split(",")
-      .map((name) => name.trim())
-      .filter(Boolean) as ProviderName[];
+    // Dedupe (first occurrence wins) so "brave,brave" fans out to brave once.
+    const participants: ProviderName[] = [];
+    for (const raw of parallelRaw.split(",")) {
+      const name = raw.trim();
+      if (!name) continue;
+      const provider = name as ProviderName;
+      if (!participants.includes(provider)) participants.push(provider);
+    }
     for (const name of participants) {
       if (!AVAILABLE_PROVIDERS.includes(name)) {
         throw new Error(

@@ -182,6 +182,15 @@ describe("parallel flag and participant config", () => {
     ).toMatchObject({ parallelParticipants: ["brave", "tavily"] });
   });
 
+  test("dedupes OMNISEARCH_PARALLEL entries keeping the first occurrence", () => {
+    expect(routerConfigFromEnv({ OMNISEARCH_PARALLEL: "brave,brave" })).toMatchObject({
+      parallelParticipants: ["brave"],
+    });
+    expect(routerConfigFromEnv({ OMNISEARCH_PARALLEL: "brave, tavily, brave" })).toMatchObject({
+      parallelParticipants: ["brave", "tavily"],
+    });
+  });
+
   test("rejects unknown OMNISEARCH_PARALLEL entries", () => {
     expect(() => routerConfigFromEnv({ OMNISEARCH_PARALLEL: "brave, exa" })).toThrow(/exa/);
   });

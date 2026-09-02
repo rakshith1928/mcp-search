@@ -28,7 +28,7 @@ export function createOmnisearchServer(config: Partial<RouterConfig> = {}): {
   router: Router;
 } {
   const router = createRouter(resolveRouterConfig(config));
-  const server = new McpServer({ name: "omnisearch", version: "0.1.0" });
+  const server = new McpServer({ name: "omnisearch", version: "0.2.0" });
 
   server.registerTool(
     OMNISEARCH_TOOL_NAME,

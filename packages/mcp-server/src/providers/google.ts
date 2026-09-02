@@ -47,7 +47,10 @@ export function createGoogleProvider(options: GoogleProviderOptions = {}): Searc
       });
 
       if (!response.ok) {
-        const detail = (await response.text()).slice(0, 200);
+        // Redact API keys before embedding response detail in the error.
+        const detail = (await response.text())
+          .slice(0, 200)
+          .replace(/key=[^&\s"']+/g, "key=REDACTED");
         throw new Error(
           `Google search failed: HTTP ${response.status}${detail ? ` — ${detail}` : ""}`,
         );

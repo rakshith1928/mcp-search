@@ -70,6 +70,29 @@ describe("createGoogleProvider", () => {
     expect(provider.search("q")).rejects.toThrow(/403/);
   });
 
+  test("redacts API keys from non-200 error detail", async () => {
+    const provider = createGoogleProvider({
+      apiKey: "k",
+      searchEngineId: "cx",
+      fetchImpl: stubFetch(401, {
+        error: { message: "Requests from referer blocked. Check key=secret123 configuration." },
+      }),
+    });
+
+    let caught: unknown;
+    try {
+      await provider.search("q");
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    const message = (caught as Error).message;
+    expect(message).toContain("401");
+    expect(message).not.toContain("secret123");
+    expect(message).toContain("key=REDACTED");
+  });
+
   test("throws a clear error naming GOOGLE_SEARCH_ENGINE_ID when it is missing", () => {
     const prev = process.env.GOOGLE_SEARCH_ENGINE_ID;
     delete process.env.GOOGLE_SEARCH_ENGINE_ID;

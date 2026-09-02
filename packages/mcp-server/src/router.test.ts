@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createRouter, type RouterConfig } from "./router.js";
-import type { SearchProvider, SearchResult } from "./types.js";
+import type { ProviderName, SearchProvider, SearchResult } from "./types.js";
 
 function fakeProvider(name: SearchProvider["name"], resultCount = 2): SearchProvider {
   return {
@@ -401,6 +401,46 @@ describe("createRouter parallel mode", () => {
     expect(openaiCalls).toBe(1);
   });
 
+  test("does not reuse a single-mode fallback entry cached under the requested provider", async () => {
+    let braveCalls = 0;
+    let openaiCalls = 0;
+    const brave: SearchProvider = {
+      name: "brave",
+      search: async () => {
+        braveCalls += 1;
+        throw new Error("HTTP 500");
+      },
+    };
+    const openai: SearchProvider = {
+      name: "openai",
+      search: async () => {
+        openaiCalls += 1;
+        return [o1];
+      },
+    };
+    const router = createRouter(
+      config({
+        primary: "brave",
+        fallback: ["openai"],
+        parallelParticipants: ["brave", "openai"],
+        providers: { brave, openai },
+      }),
+    );
+
+    const single = await router.search("q");
+    expect(single.provider).toBe("openai");
+    expect(single.fellBack).toBe(true);
+
+    const parallel = await router.search("q", {}, undefined, true);
+
+    expect(parallel.mode).toBe("parallel");
+    expect(parallel.failedProviders).toEqual(["brave"]);
+    expect(parallel.results).toEqual([o1]);
+    expect(parallel.markdown).toContain("Note: 1 provider(s) failed: brave");
+    expect(braveCalls).toBe(2); // attempted again in parallel mode; poisoned entry not reused
+    expect(openaiCalls).toBe(2); // re-served parallel mode; its results stay attributed to openai
+  });
+
   test("config parallelParticipants take priority over the env presence scan", async () => {
     const prev = process.env.BRAVE_API_KEY;
     process.env.BRAVE_API_KEY = "env-key";
@@ -485,5 +525,59 @@ describe("createRouter parallel mode", () => {
       if (prevOpenai !== undefined) process.env.OPENAI_API_KEY = prevOpenai;
       else delete process.env.OPENAI_API_KEY;
     }
+  });
+
+  test("dedupes explicit parallelParticipants so a repeated provider fans out once", async () => {
+    let braveCalls = 0;
+    const brave: SearchProvider = {
+      name: "brave",
+      search: async () => {
+        braveCalls += 1;
+        return [b1];
+      },
+    };
+    const router = createRouter(
+      config({ parallelParticipants: ["brave", "brave"], providers: { brave } }),
+    );
+
+    const response = await router.search("q", {}, undefined, true);
+
+    expect(response.providers).toEqual(["brave"]);
+    expect(braveCalls).toBe(1);
+    expect(response.results).toEqual([b1]);
+  });
+
+  test("rejects unknown explicit parallelParticipants naming the available set", async () => {
+    const router = createRouter(
+      config({
+        parallelParticipants: ["brave", "exa" as ProviderName],
+        providers: { brave: fakeProvider("brave", [b1]) },
+      }),
+    );
+
+    expect(router.search("q", {}, undefined, true)).rejects.toThrow(
+      /Invalid parallel participant 'exa'[\s\S]*Available:/,
+    );
+  });
+
+  test("acquires each participant's limiter exactly once per parallel search", async () => {
+    const acquisitions: string[] = [];
+    const makeLimiter = (name: string) => ({
+      acquire: async () => {
+        acquisitions.push(name);
+      },
+    });
+    const router = createRouter(
+      config({
+        parallelParticipants: ["brave", "openai"],
+        providers: { brave: fakeProvider("brave", [b1]), openai: fakeProvider("openai", [o1]) },
+        limiters: { brave: makeLimiter("brave"), openai: makeLimiter("openai") },
+      }),
+    );
+
+    const response = await router.search("q", {}, undefined, true);
+
+    expect(response.failedProviders).toEqual([]);
+    expect([...acquisitions].sort()).toEqual(["brave", "openai"]);
   });
 });

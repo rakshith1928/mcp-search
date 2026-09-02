@@ -93,7 +93,23 @@ export function createRouter(config: RouterConfig) {
 
   function resolveParticipants(): ProviderName[] {
     const explicit = config.parallelParticipants;
-    if (explicit && explicit.length > 0) return explicit;
+    if (explicit && explicit.length > 0) {
+      // Dedupe first (first occurrence wins) so a repeated name fans out once,
+      // then validate so a bad programmatic list fails loudly instead of
+      // attempting an unknown provider.
+      const unique: ProviderName[] = [];
+      for (const name of explicit) {
+        if (!unique.includes(name)) unique.push(name);
+      }
+      for (const name of unique) {
+        if (!AVAILABLE_PROVIDERS.includes(name)) {
+          throw new Error(
+            `Invalid parallel participant '${name}'. Available: ${AVAILABLE_PROVIDERS.join(", ")}`,
+          );
+        }
+      }
+      return unique;
+    }
     return AVAILABLE_PROVIDERS.filter(hasProviderConfig);
   }
 
@@ -144,7 +160,13 @@ export function createRouter(config: RouterConfig) {
     const tasks = participants.map(async (name) => {
       const perKey = cacheKey(name, query, options);
       const perCached = cache.get(perKey);
-      if (perCached) return perCached.results;
+      // Only reuse entries that genuinely belong to this provider: a single-mode
+      // fallback caches the fallback provider's results under the requested
+      // primary's key (fellBack=true), and reusing those here would misattribute
+      // results and hide the primary's failure from failedProviders reporting.
+      if (perCached && !perCached.fellBack && perCached.provider === name) {
+        return perCached.results;
+      }
       const provider = await providerFor(name);
       await limiterFor(name)?.acquire();
       const results = await provider.search(query, options);
