@@ -6,8 +6,16 @@
  * with caching, rate limiting, and fallback chains.
  */
 
-/** All search providers available in v1. */
-export type ProviderName = "anthropic" | "openai" | "brave" | "moonshot";
+/** All search providers available in v1.1. */
+export type ProviderName =
+  | "anthropic"
+  | "openai"
+  | "brave"
+  | "moonshot"
+  | "tavily"
+  | "google"
+  | "searxng"
+  | "perplexity";
 
 /** A single normalized search result. */
 export interface SearchResult {

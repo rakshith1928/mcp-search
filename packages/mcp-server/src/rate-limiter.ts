@@ -13,6 +13,10 @@ export const DEFAULT_RATE_LIMITS: Record<ProviderName, RateLimitConfig> = {
   anthropic: { limit: 10, windowMs: 60_000 },
   openai: { limit: 10, windowMs: 60_000 },
   moonshot: { limit: 10, windowMs: 60_000 },
+  tavily: { limit: 15, windowMs: 60_000 },
+  google: { limit: 10, windowMs: 60_000 },
+  searxng: { limit: 60, windowMs: 60_000 },
+  perplexity: { limit: 10, windowMs: 60_000 },
 };
 
 export function rateLimitEnvKey(provider: ProviderName): string {

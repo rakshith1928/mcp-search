@@ -23,8 +23,10 @@ export interface ProviderLoader {
 /**
  * Dynamic-import loaders: each provider module (and its optional SDK
  * dependencies) is only imported when its provider is first requested.
+ * Partial because loaders exist only for implemented providers;
+ * AVAILABLE_PROVIDERS is the advertised set.
  */
-export const PROVIDER_LOADERS: Record<ProviderName, ProviderLoader> = {
+export const PROVIDER_LOADERS: Partial<Record<ProviderName, ProviderLoader>> = {
   brave: {
     create: async (options) => (await import("./brave.js")).createBraveProvider(options),
   },
@@ -58,9 +60,10 @@ function usesCache(options?: ProviderFactoryOptions): boolean {
 export async function getProvider(
   name: ProviderName,
   options?: ProviderFactoryOptions,
-  loaders: Record<ProviderName, ProviderLoader> = PROVIDER_LOADERS,
+  loaders: Partial<Record<ProviderName, ProviderLoader>> = PROVIDER_LOADERS,
 ): Promise<SearchProvider> {
-  if (!Object.prototype.hasOwnProperty.call(loaders, name)) {
+  const loader = Object.prototype.hasOwnProperty.call(loaders, name) ? loaders[name] : undefined;
+  if (!loader) {
     throw new Error(
       `Provider '${name}' is not available in this version. Available: ${AVAILABLE_PROVIDERS.join(", ")}`,
     );
@@ -72,7 +75,7 @@ export async function getProvider(
   }
 
   const apiKey = resolveApiKey(name, options?.apiKey);
-  const provider = await loaders[name].create({ ...options, apiKey });
+  const provider = await loader.create({ ...options, apiKey });
 
   if (usesCache(options)) {
     providerCache.set(name, provider);

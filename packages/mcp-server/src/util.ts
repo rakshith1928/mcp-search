@@ -8,6 +8,10 @@ export const ENV_BY_PROVIDER: Record<ProviderName, string> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
   moonshot: "MOONSHOT_API_KEY",
+  tavily: "TAVILY_API_KEY",
+  google: "GOOGLE_API_KEY",
+  searxng: "SEARXNG_BASE_URL",
+  perplexity: "PERPLEXITY_API_KEY",
 };
 
 /**
