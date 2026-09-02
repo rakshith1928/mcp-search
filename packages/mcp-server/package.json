@@ -1,10 +1,16 @@
 {
   "name": "@omnisearch/mcp-server",
   "version": "0.1.0",
-  "description": "Universal multi-provider web search MCP server — Brave, Anthropic, OpenAI, Moonshot — with LRU caching, per-provider rate limiting, and fallback chains",
+  "description": "Universal multi-provider web search MCP server \u2014 Brave, Anthropic, OpenAI, Moonshot \u2014 with LRU caching, per-provider rate limiting, and fallback chains",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/api.js",
+  "types": "./dist/api.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/api.d.ts",
+      "default": "./dist/api.js"
+    }
+  },
   "bin": {
     "omnisearch": "./dist/index.js"
   },
@@ -21,7 +27,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.13.0",
     "openai": "^5.0.0",
-    "zod": "^3.25.0"
+    "zod": "^4.1.8"
   },
   "optionalDependencies": {
     "@anthropic-ai/sdk": ">=0.55.0 <1"

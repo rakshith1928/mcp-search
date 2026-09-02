@@ -7,6 +7,8 @@
  * definition without depending on either SDK.
  */
 
+export * from "./plugin-impl.js";
+
 export type {
   ProviderName,
   SearchOptions,

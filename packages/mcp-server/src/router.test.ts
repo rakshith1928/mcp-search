@@ -181,3 +181,60 @@ describe("createRouter", () => {
     expect(acquisitions).toEqual(["brave", "openai"]);
   });
 });
+
+describe("createRouter chain override", () => {
+  test("routes through the override chain instead of the default primary", async () => {
+    const router = createRouter(
+      config({ providers: { brave: fakeProvider("brave"), openai: fakeProvider("openai") } }),
+    );
+
+    const response = await router.search("typescript", {}, ["openai"]);
+
+    expect(response.provider).toBe("openai");
+    expect(response.fellBack).toBe(false);
+  });
+
+  test("falls back within the override chain", async () => {
+    const router = createRouter(
+      config({
+        providers: {
+          brave: fakeProvider("brave"),
+          openai: failingProvider("openai", "down"),
+        },
+      }),
+    );
+
+    const response = await router.search("typescript", {}, ["openai", "brave"]);
+
+    expect(response.provider).toBe("brave");
+    expect(response.fellBack).toBe(true);
+    expect(response.requestedProvider).toBe("openai");
+  });
+
+  test("cache keys distinguish provider overrides", async () => {
+    let braveCalls = 0;
+    let openaiCalls = 0;
+    const brave: SearchProvider = {
+      name: "brave",
+      search: async () => {
+        braveCalls += 1;
+        return [{ title: "b", url: "https://b.example.com", snippet: "" }];
+      },
+    };
+    const openai: SearchProvider = {
+      name: "openai",
+      search: async () => {
+        openaiCalls += 1;
+        return [{ title: "o", url: "https://o.example.com", snippet: "" }];
+      },
+    };
+    const router = createRouter(config({ providers: { brave, openai } }));
+
+    await router.search("q");
+    await router.search("q", {}, ["openai"]);
+    await router.search("q"); // brave result still cached
+
+    expect(braveCalls).toBe(1);
+    expect(openaiCalls).toBe(1);
+  });
+});

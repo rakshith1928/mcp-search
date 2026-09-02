@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@omnisearch/mcp-server": "workspace:*"
+    "@omnisearch/mcp-server": "workspace:*",
+    "zod": "^4.1.8"
   },
   "license": "MIT"
 }

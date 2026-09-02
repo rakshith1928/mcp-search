@@ -1,14 +1,22 @@
+#!/usr/bin/env node
 /**
- * @omnisearch/mcp-server entry point.
+ * omnisearch CLI entry point.
  *
- * Phase 4 adds the MCP server transport and CLI test mode here; for now the
- * package exposes its public types so workspace consumers can type-check.
+ * - `omnisearch search <query> [--provider <name>] [--max <n>]` — one-shot
+ *   search printing normalized markdown to stdout (CLI test mode).
+ * - `omnisearch` (no args) — start the MCP server on stdio.
  */
 
-export type {
-  ProviderName,
-  SearchOptions,
-  SearchProvider,
-  SearchResult,
-  SearchResponse,
-} from "./types.js";
+import { runSearch, USAGE } from "./cli.js";
+import { startStdioServer } from "./server.js";
+
+const args = process.argv.slice(2);
+
+if (args[0] === "search") {
+  process.exitCode = await runSearch(args);
+} else if (args.length === 0) {
+  await startStdioServer();
+} else {
+  process.stderr.write(`Unknown command: ${args[0]}\n${USAGE}\n`);
+  process.exitCode = 1;
+}

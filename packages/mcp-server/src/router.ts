@@ -84,8 +84,13 @@ export function createRouter(config: RouterConfig) {
     return limiter;
   }
 
-  async function search(query: string, options: SearchOptions = {}): Promise<SearchResponse> {
-    const key = cacheKey(config.primary, query, options);
+  async function search(
+    query: string,
+    options: SearchOptions = {},
+    chain?: ProviderName[],
+  ): Promise<SearchResponse> {
+    const effectivePrimary = chain?.[0] ?? config.primary;
+    const key = cacheKey(effectivePrimary, query, options);
 
     const cached = cache.get(key);
     if (cached) {
@@ -101,20 +106,21 @@ export function createRouter(config: RouterConfig) {
       };
     }
 
-    const chain: ProviderName[] = [config.primary, ...(config.fallback ?? [])];
+    const attemptChain = chain ?? [config.primary, ...(config.fallback ?? [])];
     const startedAt = Date.now();
     const errors: string[] = [];
 
-    for (const name of chain) {
+    for (const name of attemptChain) {
       await limiterFor(name)?.acquire();
       try {
         const provider = await providerFor(name);
         const results = await provider.search(query, options);
         const markdown = normalizeResults(query, name, results);
+        const fellBack = name !== effectivePrimary;
         const value: CacheValue = {
           provider: name,
-          requestedProvider: name === config.primary ? undefined : config.primary,
-          fellBack: name !== config.primary,
+          requestedProvider: fellBack ? effectivePrimary : undefined,
+          fellBack,
           results,
           markdown,
         };

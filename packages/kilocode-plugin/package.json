@@ -9,5 +9,14 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "peerDependencies": {
+    "@kilocode/plugin": ">=1.0.0"
+  },
+  "devDependencies": {
+    "@kilocode/plugin": "^7.5.6"
+  },
+  "dependencies": {
+    "@omnisearch/shared": "workspace:*"
+  }
 }
