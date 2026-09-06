@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ENV_BY_PROVIDER, resolveApiKey, stripHtml } from "./util.js";
+import { ENV_BY_PROVIDER, hasProviderConfig, resolveApiKey, stripHtml } from "./util.js";
 
 describe("stripHtml", () => {
   test("removes tags", () => {
@@ -52,5 +52,33 @@ describe("resolveApiKey", () => {
     expect(ENV_BY_PROVIDER.anthropic).toBe("ANTHROPIC_API_KEY");
     expect(ENV_BY_PROVIDER.openai).toBe("OPENAI_API_KEY");
     expect(ENV_BY_PROVIDER.moonshot).toBe("MOONSHOT_API_KEY");
+  });
+});
+
+describe("hasProviderConfig", () => {
+  test("true iff the provider's env var is set", () => {
+    const prev = process.env.BRAVE_API_KEY;
+    delete process.env.BRAVE_API_KEY;
+    try {
+      expect(hasProviderConfig("brave")).toBe(false);
+      process.env.BRAVE_API_KEY = "x";
+      expect(hasProviderConfig("brave")).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.BRAVE_API_KEY;
+      else process.env.BRAVE_API_KEY = prev;
+    }
+  });
+
+  test("google counts GOOGLE_API_KEY (its cx is validated at load)", () => {
+    const prev = process.env.GOOGLE_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
+    try {
+      expect(hasProviderConfig("google")).toBe(false);
+      process.env.GOOGLE_API_KEY = "x";
+      expect(hasProviderConfig("google")).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.GOOGLE_API_KEY;
+      else process.env.GOOGLE_API_KEY = prev;
+    }
   });
 });

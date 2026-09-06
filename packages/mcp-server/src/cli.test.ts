@@ -75,7 +75,7 @@ describe("routerConfigFromEnv", () => {
   });
 
   test("throws on an unknown provider name", () => {
-    expect(() => routerConfigFromEnv({ OMNISEARCH_PROVIDER: "google" })).toThrow(/google/);
+    expect(() => routerConfigFromEnv({ OMNISEARCH_PROVIDER: "exa" })).toThrow(/exa/);
   });
 
   test("throws with the variable name when a cache setting is not numeric", () => {
@@ -154,5 +154,44 @@ describe("runSearch", () => {
 
     expect(code).toBe(1);
     expect(stderr.chunks.join("")).toContain("HTTP 500");
+  });
+});
+
+describe("parallel flag and participant config", () => {
+  test("parses the --parallel boolean flag", () => {
+    expect(parseCliArgs(["search", "q", "--parallel"])).toEqual({
+      ok: true,
+      mode: "search",
+      query: "q",
+      provider: undefined,
+      max: undefined,
+      parallel: true,
+    });
+    expect(parseCliArgs(["search", "q"])).toMatchObject({ ok: true, parallel: undefined });
+  });
+
+  test("the usage line mentions --parallel", () => {
+    expect(USAGE).toContain("[--parallel]");
+  });
+
+  test("parses OMNISEARCH_PARALLEL into parallelParticipants", () => {
+    expect(
+      routerConfigFromEnv({
+        OMNISEARCH_PARALLEL: "brave, tavily",
+      }),
+    ).toMatchObject({ parallelParticipants: ["brave", "tavily"] });
+  });
+
+  test("dedupes OMNISEARCH_PARALLEL entries keeping the first occurrence", () => {
+    expect(routerConfigFromEnv({ OMNISEARCH_PARALLEL: "brave,brave" })).toMatchObject({
+      parallelParticipants: ["brave"],
+    });
+    expect(routerConfigFromEnv({ OMNISEARCH_PARALLEL: "brave, tavily, brave" })).toMatchObject({
+      parallelParticipants: ["brave", "tavily"],
+    });
+  });
+
+  test("rejects unknown OMNISEARCH_PARALLEL entries", () => {
+    expect(() => routerConfigFromEnv({ OMNISEARCH_PARALLEL: "brave, exa" })).toThrow(/exa/);
   });
 });

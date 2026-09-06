@@ -8,6 +8,10 @@ export const ENV_BY_PROVIDER: Record<ProviderName, string> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
   moonshot: "MOONSHOT_API_KEY",
+  tavily: "TAVILY_API_KEY",
+  google: "GOOGLE_API_KEY",
+  searxng: "SEARXNG_BASE_URL",
+  perplexity: "PERPLEXITY_API_KEY",
 };
 
 /**
@@ -42,6 +46,14 @@ export async function loadOptionalSdk<T>(importFn: () => Promise<T>, installHint
   } catch (cause) {
     throw new Error(installHint, { cause });
   }
+}
+
+/**
+ * Non-throwing check used for parallel participant discovery: true iff the
+ * provider's required env var is set (Google's cx is validated at load).
+ */
+export function hasProviderConfig(provider: ProviderName): boolean {
+  return Boolean(process.env[ENV_BY_PROVIDER[provider]]);
 }
 
 const HTML_ENTITIES: Record<string, string> = {

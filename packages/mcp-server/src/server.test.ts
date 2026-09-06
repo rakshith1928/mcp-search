@@ -50,6 +50,34 @@ describe("createOmnisearchServer", () => {
     expect(text).toContain("## Sources");
   });
 
+  test("parallel: true fans out to configured participants and merges", async () => {
+    const client = await connect({
+      parallelParticipants: ["brave", "openai"],
+      providers: {
+        brave: {
+          name: "brave",
+          search: async () => [{ title: "b1", url: "https://b.example.com", snippet: "" }],
+        },
+        openai: {
+          name: "openai",
+          search: async () => [{ title: "o1", url: "https://o.example.com", snippet: "" }],
+        },
+      },
+    });
+
+    const result = await client.callTool({
+      name: "omnisearch",
+      arguments: { query: "typescript", parallel: true },
+    });
+    const text = (result.content as Array<{ type: string; text?: string }>).find(
+      (c) => c.type === "text",
+    )?.text;
+
+    expect(text).toContain("(via parallel: brave, openai)");
+    expect(text).toContain("https://b.example.com");
+    expect(text).toContain("https://o.example.com");
+  });
+
   test("honors a per-call provider override", async () => {
     const client = await connect({ providers: { openai: fakeProvider("openai") } });
 

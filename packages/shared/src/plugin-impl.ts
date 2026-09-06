@@ -66,6 +66,7 @@ export function createPluginHooks<TTool>(
         args.query,
         { maxResults: args.maxResults ?? options.defaultMaxResults },
         chain,
+        args.parallel,
       );
       return response.markdown;
     },

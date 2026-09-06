@@ -98,6 +98,35 @@ describe("createPluginHooks", () => {
     expect(markdown).toContain("via openai");
   });
 
+  test("execute passes parallel through to the router", async () => {
+    const { fn } = identityToolFn();
+    const hooks = createPluginHooks(
+      {
+        routerConfig: {
+          parallelParticipants: ["brave", "openai"],
+          providers: {
+            brave: {
+              name: "brave" as const,
+              search: async () => [{ title: "B", url: "https://b.example.com", snippet: "" }],
+            },
+            openai: {
+              name: "openai" as const,
+              search: async () => [{ title: "O", url: "https://o.example.com", snippet: "" }],
+            },
+          },
+        },
+      },
+      fn,
+    );
+
+    const markdown = await hooks.tool[OMNISEARCH_TOOL_NAME].execute(
+      { query: "typescript", parallel: true },
+      {},
+    );
+
+    expect(markdown).toContain("(via parallel: brave, openai)");
+  });
+
   test("plugin options configure the primary provider", async () => {
     const { fn } = identityToolFn();
     const hooks = createPluginHooks(

@@ -1,12 +1,18 @@
 import type { ProviderName, SearchProvider } from "../types.js";
-import { resolveApiKey } from "../util.js";
+import type { SearxngProviderOptions } from "./searxng.js";
 
-/** All providers available in v1. */
+export { requireEnv } from "../util.js";
+
+/** All providers available in v1.1. */
 export const AVAILABLE_PROVIDERS: readonly ProviderName[] = [
   "brave",
   "anthropic",
   "openai",
   "moonshot",
+  "tavily",
+  "google",
+  "searxng",
+  "perplexity",
 ];
 
 /** Options forwarded to a provider factory. */
@@ -23,8 +29,10 @@ export interface ProviderLoader {
 /**
  * Dynamic-import loaders: each provider module (and its optional SDK
  * dependencies) is only imported when its provider is first requested.
+ * Partial because loaders exist only for implemented providers;
+ * AVAILABLE_PROVIDERS is the advertised set.
  */
-export const PROVIDER_LOADERS: Record<ProviderName, ProviderLoader> = {
+export const PROVIDER_LOADERS: Partial<Record<ProviderName, ProviderLoader>> = {
   brave: {
     create: async (options) => (await import("./brave.js")).createBraveProvider(options),
   },
@@ -36,6 +44,19 @@ export const PROVIDER_LOADERS: Record<ProviderName, ProviderLoader> = {
   },
   moonshot: {
     create: async (options) => (await import("./moonshot.js")).createMoonshotProvider(options),
+  },
+  tavily: {
+    create: async (options) => (await import("./tavily.js")).createTavilyProvider(options),
+  },
+  google: {
+    create: async (options) => (await import("./google.js")).createGoogleProvider(options),
+  },
+  searxng: {
+    create: async (options) =>
+      (await import("./searxng.js")).createSearxngProvider(options as SearxngProviderOptions),
+  },
+  perplexity: {
+    create: async (options) => (await import("./perplexity.js")).createPerplexityProvider(options),
   },
 };
 
@@ -49,18 +70,21 @@ function usesCache(options?: ProviderFactoryOptions): boolean {
 }
 
 /**
- * Resolve a provider by name, validating its API key on load.
+ * Resolve a provider by name. Credential/config validation happens inside
+ * each factory at construction time — construction is load time in a lazy
+ * registry, so a missing key fails fast here with the factory's clear error.
  *
- * @param name    provider to load; anything outside the v1 set is rejected
+ * @param name    provider to load; anything outside the advertised set is rejected
  * @param options forwarded to the provider factory; absent/empty options hit the cache
  * @param loaders overridable loader map (tests)
  */
 export async function getProvider(
   name: ProviderName,
   options?: ProviderFactoryOptions,
-  loaders: Record<ProviderName, ProviderLoader> = PROVIDER_LOADERS,
+  loaders: Partial<Record<ProviderName, ProviderLoader>> = PROVIDER_LOADERS,
 ): Promise<SearchProvider> {
-  if (!Object.prototype.hasOwnProperty.call(loaders, name)) {
+  const loader = Object.prototype.hasOwnProperty.call(loaders, name) ? loaders[name] : undefined;
+  if (!loader) {
     throw new Error(
       `Provider '${name}' is not available in this version. Available: ${AVAILABLE_PROVIDERS.join(", ")}`,
     );
@@ -71,8 +95,7 @@ export async function getProvider(
     if (cached) return cached;
   }
 
-  const apiKey = resolveApiKey(name, options?.apiKey);
-  const provider = await loaders[name].create({ ...options, apiKey });
+  const provider = await loader.create({ ...options });
 
   if (usesCache(options)) {
     providerCache.set(name, provider);
@@ -85,4 +108,3 @@ export function clearProviderCache(): void {
   providerCache.clear();
 }
 
-export { requireEnv } from "../util.js";

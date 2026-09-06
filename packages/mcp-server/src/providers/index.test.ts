@@ -39,17 +39,40 @@ describe("getProvider", () => {
 
   test("rejects providers outside the v1 set with the available list", async () => {
     clearProviderCache();
-    const error = (await getProvider("tavily" as ProviderName).catch((e) => e)) as Error;
+    const error = (await getProvider("exa" as ProviderName).catch((e) => e)) as Error;
     expect(error.message).toContain("not available in this version");
     for (const name of AVAILABLE_PROVIDERS) {
       expect(error.message).toContain(name);
     }
   });
 
+  test("the unknown-provider error lists all eight providers", async () => {
+    clearProviderCache();
+    const error = (await getProvider("exa" as ProviderName).catch((e) => e)) as Error;
+    for (const name of ["brave", "anthropic", "openai", "moonshot", "tavily", "google", "searxng", "perplexity"]) {
+      expect(error.message).toContain(name);
+    }
+  });
+
+  test("lazy-loads each v1.1 provider through its dynamic import", async () => {
+    clearProviderCache();
+    const tavily = await getProvider("tavily", { apiKey: "test-key" });
+    expect(tavily.name).toBe("tavily");
+
+    const google = await getProvider("google", { apiKey: "test-key", searchEngineId: "test-cx" });
+    expect(google.name).toBe("google");
+
+    const searxng = await getProvider("searxng", { baseUrl: "https://searx.example.com" });
+    expect(searxng.name).toBe("searxng");
+
+    const perplexity = await getProvider("perplexity", { apiKey: "test-key" });
+    expect(perplexity.name).toBe("perplexity");
+  });
+
   test("an uninstalled SDK only throws when its own provider is requested", async () => {
     clearProviderCache();
     const fakeBrave: SearchProvider = { name: "brave", search: async () => [] };
-    const loaders: Record<ProviderName, ProviderLoader> = {
+    const loaders: Partial<Record<ProviderName, ProviderLoader>> = {
       ...PROVIDER_LOADERS,
       brave: { create: async () => fakeBrave },
       anthropic: {

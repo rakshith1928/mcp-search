@@ -6,8 +6,16 @@
  * with caching, rate limiting, and fallback chains.
  */
 
-/** All search providers available in v1. */
-export type ProviderName = "anthropic" | "openai" | "brave" | "moonshot";
+/** All search providers available in v1.1. */
+export type ProviderName =
+  | "anthropic"
+  | "openai"
+  | "brave"
+  | "moonshot"
+  | "tavily"
+  | "google"
+  | "searxng"
+  | "perplexity";
 
 /** A single normalized search result. */
 export interface SearchResult {
@@ -51,4 +59,10 @@ export interface SearchResponse {
   cached: boolean;
   /** Wall-clock duration of the search in milliseconds (0 for cache hits). */
   elapsedMs: number;
+  /** Present on parallel responses: the mode that produced them. */
+  mode?: "single" | "parallel";
+  /** Parallel mode: every participant attempted, in resolution order. */
+  providers?: ProviderName[];
+  /** Parallel mode: participants whose search failed. */
+  failedProviders?: ProviderName[];
 }

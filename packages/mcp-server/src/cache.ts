@@ -62,6 +62,20 @@ export function cacheKey(provider: ProviderName, query: string, options?: Search
   return `${provider}:${fnv1a(`${query}\u0000${canonicalOptions}`)}`;
 }
 
+/**
+ * Cache key for a merged parallel response: order-insensitive over the
+ * participant list, sensitive to the set itself plus query and options.
+ */
+export function mergedCacheKey(
+  participants: ProviderName[],
+  query: string,
+  options?: SearchOptions,
+): string {
+  const canonicalOptions = JSON.stringify(sortKeys(options ?? {}));
+  const participantSet = [...participants].sort().join(",");
+  return `parallel:${fnv1a(`${participantSet}\u0000${query}\u0000${canonicalOptions}`)}`;
+}
+
 function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeys);
   if (value && typeof value === "object") {

@@ -1,6 +1,6 @@
 {
   "name": "omnisearch-kilocode",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Omnisearch multi-provider web search plugin for Kilocode",
   "type": "module",
   "main": "./dist/index.js",

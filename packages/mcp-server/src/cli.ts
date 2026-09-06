@@ -3,11 +3,11 @@ import { buildSearchChain } from "./tool-schema.js";
 import { createRouter, type RouterConfig } from "./router.js";
 import type { ProviderName } from "./types.js";
 
-export const USAGE = "Usage: omnisearch search <query> [--provider <name>] [--max <n>]";
+export const USAGE = "Usage: omnisearch search <query> [--provider <name>] [--max <n>] [--parallel]";
 
 export type ParsedCliArgs =
   | { ok: true; mode: "mcp" }
-  | { ok: true; mode: "search"; query: string; provider?: ProviderName; max?: number }
+  | { ok: true; mode: "search"; query: string; provider?: ProviderName; max?: number; parallel?: boolean }
   | { ok: false; error: string };
 
 /**
@@ -23,6 +23,7 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
   const words: string[] = [];
   let provider: ProviderName | undefined;
   let max: number | undefined;
+  let parallel: boolean | undefined;
 
   for (let i = 1; i < argv.length; i++) {
     const arg = argv[i] as string;
@@ -46,6 +47,8 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
         };
       }
       max = parsed;
+    } else if (arg === "--parallel") {
+      parallel = true;
     } else if (arg.startsWith("--")) {
       return { ok: false, error: `Unknown flag: ${arg}. ${USAGE}` };
     } else {
@@ -56,7 +59,7 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
   if (words.length === 0) {
     return { ok: false, error: `Missing search query. ${USAGE}` };
   }
-  return { ok: true, mode: "search", query: words.join(" "), provider, max };
+  return { ok: true, mode: "search", query: words.join(" "), provider, max, parallel };
 }
 
 /** Parse a positive-integer env var, throwing a clear error naming the variable. */
@@ -95,6 +98,26 @@ export function routerConfigFromEnv(
       }
     }
     config.fallback = fallback;
+  }
+
+  const parallelRaw = env.OMNISEARCH_PARALLEL;
+  if (parallelRaw) {
+    // Dedupe (first occurrence wins) so "brave,brave" fans out to brave once.
+    const participants: ProviderName[] = [];
+    for (const raw of parallelRaw.split(",")) {
+      const name = raw.trim();
+      if (!name) continue;
+      const provider = name as ProviderName;
+      if (!participants.includes(provider)) participants.push(provider);
+    }
+    for (const name of participants) {
+      if (!AVAILABLE_PROVIDERS.includes(name)) {
+        throw new Error(
+          `Invalid OMNISEARCH_PARALLEL entry '${name}'. Available: ${AVAILABLE_PROVIDERS.join(", ")}`,
+        );
+      }
+    }
+    config.parallelParticipants = participants;
   }
 
   if (env.OMNISEARCH_CACHE_TTL_MS) {
@@ -148,7 +171,7 @@ export async function runSearch(argv: string[], io: RunSearchIo = {}): Promise<n
   const router = createRouter(config);
   try {
     const chain = buildSearchChain(parsed.provider, config.primary, config.fallback);
-    const response = await router.search(parsed.query, { maxResults: parsed.max }, chain);
+    const response = await router.search(parsed.query, { maxResults: parsed.max }, chain, parsed.parallel);
     stdout.write(`${response.markdown}\n`);
     return 0;
   } catch (error) {
