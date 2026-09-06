@@ -17,6 +17,7 @@ Living document — terms are added as decisions land (grill-with-docs).
 | **CacheValue provenance** | Cache entries record `provider`/`fellBack`; parallel per-participant reuse requires `!fellBack && provider === name` so fallback results are never credited to the requested primary. |
 | **Token bucket** | Per-provider rate limiter with continuous refill (`RateLimiter`); defaults per provider, overridable via `OMNISEARCH_RATE_LIMIT_<PROVIDER>=<limit>/<windowSeconds>`. |
 | **CLI test mode** | `omnisearch search "query" [...]` one-shot mode printing normalized markdown to stdout; no args = MCP stdio server. |
+| **Provider catalog** | `providers/catalog.ts` — one `as const` descriptor per provider ({ name, envKey, kind, rateLimit, load }); the ProviderName union, registry views, env map, rate-limit defaults, and tool-schema enum all derive from it (ADR-0008). |
 | **Normalizer** | `normalizeResults` — `SearchResult[]` → markdown (`## Web Search Results`, numbered titled links with stripped snippets, `## Sources` footer). |
 
 ## ADR index
@@ -28,3 +29,4 @@ Living document — terms are added as decisions land (grill-with-docs).
 - [ADR-0005](decisions/ADR-0005-ci-github-actions.md) — CI: GitHub Actions, ubuntu + windows, bun 1.x
 - [ADR-0006](decisions/ADR-0006-npm-publication.md) — npm publication: all four packages, maintainer runs bun publish
 - [ADR-0007](decisions/ADR-0007-markdown-escaping.md) — markdown escaping: titles only, URLs as-is
+- [ADR-0008](decisions/ADR-0008-provider-catalog.md) — provider facts live in one catalog
