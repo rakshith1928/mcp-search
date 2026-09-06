@@ -27,3 +27,4 @@ Living document — terms are added as decisions land (grill-with-docs).
 - [ADR-0004](decisions/ADR-0004-retry-with-backoff.md) — 2 in-provider retries on transient failures, exponential backoff + jitter
 - [ADR-0005](decisions/ADR-0005-ci-github-actions.md) — CI: GitHub Actions, ubuntu + windows, bun 1.x
 - [ADR-0006](decisions/ADR-0006-npm-publication.md) — npm publication: all four packages, maintainer runs bun publish
+- [ADR-0007](decisions/ADR-0007-markdown-escaping.md) — markdown escaping: titles only, URLs as-is
