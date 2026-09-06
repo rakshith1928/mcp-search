@@ -17,6 +17,8 @@ Living document — terms are added as decisions land (grill-with-docs).
 | **CacheValue provenance** | Cache entries record `provider`/`fellBack`; parallel per-participant reuse requires `!fellBack && provider === name` so fallback results are never credited to the requested primary. |
 | **Token bucket** | Per-provider rate limiter with continuous refill (`RateLimiter`); defaults per provider, overridable via `OMNISEARCH_RATE_LIMIT_<PROVIDER>=<limit>/<windowSeconds>`. |
 | **CLI test mode** | `omnisearch search "query" [...]` one-shot mode printing normalized markdown to stdout; no args = MCP stdio server. |
+| **Router context** | The internal state bundle (`RouterContext`) threaded through the router/ modules: config, cache, provider/limiter resolution, sleepImpl, timeoutMs (ADR-0009). |
+| **attemptWithRetry** | The single-homed ADR-0004 loop: resolve → acquire token → fresh signal → search → transient? backoff+retry. Returns results; cache writes stay with each path. |
 | **Provider catalog** | `providers/catalog.ts` — one `as const` descriptor per provider ({ name, envKey, kind, rateLimit, load }); the ProviderName union, registry views, env map, rate-limit defaults, and tool-schema enum all derive from it (ADR-0008). |
 | **Normalizer** | `normalizeResults` — `SearchResult[]` → markdown (`## Web Search Results`, numbered titled links with stripped snippets, `## Sources` footer). |
 
@@ -30,3 +32,4 @@ Living document — terms are added as decisions land (grill-with-docs).
 - [ADR-0006](decisions/ADR-0006-npm-publication.md) — npm publication: all four packages, maintainer runs bun publish
 - [ADR-0007](decisions/ADR-0007-markdown-escaping.md) — markdown escaping: titles only, URLs as-is
 - [ADR-0008](decisions/ADR-0008-provider-catalog.md) — provider facts live in one catalog
+- [ADR-0009](decisions/ADR-0009-router-deepening.md) — Router owns routing intent; one options interface; router/ split
