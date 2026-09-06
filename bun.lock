@@ -55,7 +55,6 @@
       "version": "0.2.0",
       "dependencies": {
         "@omnisearch/mcp-server": "workspace:*",
-        "zod": "^4.1.8",
       },
     },
   },
