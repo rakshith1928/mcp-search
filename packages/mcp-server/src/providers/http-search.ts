@@ -59,9 +59,11 @@ export function createHttpSearchProvider(config: HttpSearchProviderConfig): Sear
       const response = await fetchImpl(url, { ...init, signal: searchOptions.signal });
 
       if (!response.ok) {
-        const body = (await response.text()).slice(0, 200);
-        const hint = config.errorHint ? config.errorHint(response.status, body) : "";
-        const detail = redactCredentials(body);
+        // Slice first (matching the original google implementation's byte
+        // output), then redact before anything — including errorHint — sees
+        // the body, so hint interpolation can never leak credentials.
+        const detail = redactCredentials((await response.text()).slice(0, 200));
+        const hint = config.errorHint ? config.errorHint(response.status, detail) : "";
         throw new Error(
           `${config.label} search failed: HTTP ${response.status}${hint}${detail ? ` — ${detail}` : ""}`,
         );

@@ -20,7 +20,7 @@ inconsistencies (server-side vs client-side maxResults clamping).
 buildRequest, parseResponse, errorHint? })`:
 
 - The adapter owns the contract: fetchImpl resolution, abort-signal
-  forwarding, `!ok → redact `key=` → slice(200) → standardized throw`
+  forwarding, `!ok → slice(200) → redact `key=` → standardized throw`
   (universal credential redaction; `errorHint` decorates per provider),
   client-side maxResults slicing (default 10, single-homed), and a
   `clampMaxResults(value, cap)` helper for providers that clamp

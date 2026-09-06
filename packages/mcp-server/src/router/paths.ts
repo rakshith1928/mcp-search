@@ -3,11 +3,10 @@ import { cacheKey, mergedCacheKey } from "../cache.js";
 import { appendFailureNote, normalizeResults } from "../normalize.js";
 import { AVAILABLE_PROVIDERS } from "../providers/index.js";
 import { hasProviderConfig } from "../util.js";
+import { DEFAULT_MAX_RESULTS } from "../providers/http-search.js";
 import type { RouterConfig, RouterSearchOptions } from "./index.js";
 import { attemptWithRetry, type RouterContext } from "./attempts.js";
 import { buildResponse, type CacheValue } from "./response.js";
-
-const DEFAULT_MAX_RESULTS = 10;
 
 /**
  * Parallel participant resolution (v1.1 semantics): explicit config list
