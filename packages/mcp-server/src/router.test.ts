@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createRouter, type RouterConfig } from "./router.js";
+import { createRouter, isTransientSearchError, type RouterConfig } from "./router.js";
 import type { ProviderName, SearchProvider, SearchResult } from "./types.js";
 
 function fakeProvider(name: SearchProvider["name"], resultCount = 2): SearchProvider {
@@ -66,6 +66,7 @@ describe("createRouter", () => {
           brave: failingProvider("brave", "HTTP 429"),
           moonshot: fakeProvider("moonshot"),
         },
+        sleepImpl: async () => {},
       }),
     );
 
@@ -83,8 +84,8 @@ describe("createRouter", () => {
         primary: "brave",
         fallback: ["openai", "moonshot"],
         providers: {
-          brave: failingProvider("brave", "down"),
-          openai: failingProvider("openai", "also down"),
+          brave: failingProvider("brave", "HTTP 401"),
+          openai: failingProvider("openai", "HTTP 401"),
           moonshot: fakeProvider("moonshot"),
         },
       }),
@@ -103,6 +104,7 @@ describe("createRouter", () => {
           brave: failingProvider("brave", "HTTP 500"),
           openai: failingProvider("openai", "HTTP 401"),
         },
+        sleepImpl: async () => {},
       }),
     );
 
@@ -212,18 +214,12 @@ describe("createRouter", () => {
 
   test("does not attempt the primary twice when the fallback list includes it", async () => {
     let braveCalls = 0;
-    const brave: SearchProvider = {
-      name: "brave",
-      search: async () => {
-        braveCalls += 1;
-        throw new Error("HTTP 500");
-      },
-    };
     const router = createRouter(
       config({
         primary: "brave",
         fallback: ["brave", "openai"],
-        providers: { brave, openai: fakeProvider("openai") },
+        // permanent failure: isolates chain-dedupe from retry semantics
+        providers: { brave: { name: "brave", search: async () => { braveCalls += 1; throw new Error("HTTP 401"); } }, openai: fakeProvider("openai") },
       }),
     );
 
@@ -409,7 +405,7 @@ describe("createRouter parallel mode", () => {
       name: "brave",
       search: async () => {
         braveCalls += 1;
-        throw new Error("HTTP 500");
+        throw new Error("HTTP 401"); // permanent: isolates cache provenance from retry semantics
       },
     };
     const openai: SearchProvider = {
@@ -624,5 +620,173 @@ describe("timeout propagation", () => {
 
     expect(signals).toHaveLength(1);
     expect(signals[0]).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe("isTransientSearchError", () => {
+  test("classifies HTTP 5xx and 429 as transient", () => {
+    expect(isTransientSearchError(new Error("Brave search failed: HTTP 500 — oops"))).toBe(true);
+    expect(isTransientSearchError(new Error("Tavily search failed: HTTP 503"))).toBe(true);
+    expect(isTransientSearchError(new Error("Google search failed: HTTP 429"))).toBe(true);
+  });
+
+  test("classifies network and timeout failures as transient", () => {
+    expect(isTransientSearchError(new TypeError("fetch failed"))).toBe(true);
+    const nested = new Error("search failed", { cause: new Error("ECONNRESET") });
+    expect(isTransientSearchError(nested)).toBe(true);
+    expect(
+      isTransientSearchError(new DOMException("The operation was aborted due to timeout", "TimeoutError")),
+    ).toBe(true);
+    expect(isTransientSearchError(new Error("request aborted"))).toBe(true);
+  });
+
+  test("classifies permanent errors as non-transient", () => {
+    expect(isTransientSearchError(new Error("Brave search failed: HTTP 401 — bad key"))).toBe(false);
+    expect(isTransientSearchError(new Error("Google search failed: HTTP 403 — quota"))).toBe(false);
+    expect(isTransientSearchError(new Error("Missing required environment variable BRAVE_API_KEY."))).toBe(false);
+    expect(isTransientSearchError("not an error")).toBe(false);
+  });
+});
+
+describe("retry with backoff", () => {
+  function sleepRecorder() {
+    const sleeps: number[] = [];
+    const impl = async (ms: number) => {
+      sleeps.push(ms);
+    };
+    return { sleeps, impl };
+  }
+
+  test("retries a transient failure and succeeds within 3 attempts", async () => {
+    let attempts = 0;
+    const provider: SearchProvider = {
+      name: "brave",
+      search: async () => {
+        attempts += 1;
+        if (attempts < 3) throw new Error("Brave search failed: HTTP 503");
+        return [{ title: "T", url: "https://example.com", snippet: "" }];
+      },
+    };
+    const limiter = { acquire: async () => {} };
+    const { sleeps, impl } = sleepRecorder();
+    const router = createRouter({
+      primary: "brave",
+      providers: { brave: provider },
+      limiters: { brave: limiter },
+      sleepImpl: impl,
+    });
+
+    const response = await router.search("q");
+
+    expect(attempts).toBe(3);
+    expect(response.results).toHaveLength(1);
+    expect(sleeps).toHaveLength(2);
+    expect(sleeps[0]).toBeGreaterThanOrEqual(500);
+    expect(sleeps[0]).toBeLessThanOrEqual(750);
+    expect(sleeps[1]).toBeGreaterThanOrEqual(1000);
+    expect(sleeps[1]).toBeLessThanOrEqual(1250);
+  });
+
+  test("does not retry permanent failures", async () => {
+    let attempts = 0;
+    const provider: SearchProvider = {
+      name: "brave",
+      search: async () => {
+        attempts += 1;
+        throw new Error("Brave search failed: HTTP 401 — bad key");
+      },
+    };
+    const { sleeps, impl } = sleepRecorder();
+    const router = createRouter({
+      primary: "brave",
+      providers: { brave: provider },
+      sleepImpl: impl,
+    });
+
+    await expect(router.search("q")).rejects.toThrow(/401/);
+    expect(attempts).toBe(1);
+    expect(sleeps).toEqual([]);
+  });
+
+  test("gives up after 3 attempts and reports the last error", async () => {
+    let attempts = 0;
+    const provider: SearchProvider = {
+      name: "brave",
+      search: async () => {
+        attempts += 1;
+        throw new Error("Brave search failed: HTTP 500");
+      },
+    };
+    const { sleeps, impl } = sleepRecorder();
+    const router = createRouter({
+      primary: "brave",
+      providers: { brave: provider },
+      sleepImpl: impl,
+    });
+
+    await expect(router.search("q")).rejects.toThrow(/500/);
+    expect(attempts).toBe(3);
+    expect(sleeps).toHaveLength(2);
+    expect(sleeps[0]).toBeLessThanOrEqual(750);
+    expect(sleeps[1]).toBeGreaterThanOrEqual(1000);
+    expect(sleeps[1]).toBeLessThanOrEqual(1250);
+  });
+
+  test("retries acquire an extra rate-limit token per attempt", async () => {
+    let attempts = 0;
+    const provider: SearchProvider = {
+      name: "brave",
+      search: async () => {
+        attempts += 1;
+        if (attempts < 2) throw new Error("Brave search failed: HTTP 500");
+        return [];
+      },
+    };
+    let acquisitions = 0;
+    const limiter = {
+      acquire: async () => {
+        acquisitions += 1;
+      },
+    };
+    const router = createRouter({
+      primary: "brave",
+      providers: { brave: provider },
+      limiters: { brave: limiter },
+      sleepImpl: async () => {},
+    });
+
+    await router.search("q");
+
+    expect(attempts).toBe(2);
+    expect(acquisitions).toBe(2);
+  });
+
+  test("parallel participants retry independently", async () => {
+    let braveAttempts = 0;
+    const router = createRouter({
+      primary: "brave",
+      parallelParticipants: ["brave", "openai"],
+      providers: {
+        brave: {
+          name: "brave",
+          search: async () => {
+            braveAttempts += 1;
+            if (braveAttempts < 2) throw new Error("Brave search failed: HTTP 500");
+            return [{ title: "b1", url: "https://b.example.com", snippet: "" }];
+          },
+        },
+        openai: {
+          name: "openai",
+          search: async () => [{ title: "o1", url: "https://o.example.com", snippet: "" }],
+        },
+      },
+      sleepImpl: async () => {},
+    });
+
+    const response = await router.search("q", {}, undefined, true);
+
+    expect(braveAttempts).toBe(2);
+    expect(response.failedProviders).toEqual([]);
+    expect(response.results).toHaveLength(2);
   });
 });

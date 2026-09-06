@@ -35,6 +35,8 @@ export interface RouterConfig {
   parallelParticipants?: ProviderName[];
   /** Per-attempt request timeout in ms (default 30000). */
   timeoutMs?: number;
+  /** Injectable sleep for backoff (tests); real setTimeout otherwise. */
+  sleepImpl?: (ms: number) => Promise<void>;
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -52,8 +54,30 @@ interface CacheValue {
   failedProviders?: ProviderName[];
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+const MAX_RETRIES = 2;
+
+/**
+ * Transient failures get retried (ADR-0004): HTTP 5xx/429 (the standardized
+ * provider message shape), network errors, and timeouts/aborts. Everything
+ * else — auth, quota, config — is permanent and falls through immediately.
+ */
+export function isTransientSearchError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message ?? "";
+  if (/HTTP\s+(5\d\d|429)/.test(message)) return true;
+  if (/aborted|timed?\s*out/i.test(message)) return true;
+  if (/fetch failed/i.test(message)) return true;
+  let cause: unknown = error.cause;
+  while (cause instanceof Error) {
+    if (/ECONNRESET|ETIMEDOUT|ECONNREFUSED|fetch failed/i.test(cause.message)) return true;
+    cause = cause.cause;
+  }
+  return false;
+}
+
+function backoffMs(attempt: number, random: () => number = Math.random): number {
+  const base = 500 * Math.pow(2, attempt - 1);
+  return base + Math.floor(random() * 250);
 }
 
 /**
@@ -69,6 +93,8 @@ export function createRouter(config: RouterConfig) {
 
   const providerCache = new Map<ProviderName, SearchProvider>();
   const limiters = new Map<ProviderName, Pick<RateLimiter, "acquire">>();
+  const sleepImpl =
+    config.sleepImpl ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
 
   async function providerFor(name: ProviderName): Promise<SearchProvider> {
     const injected = config.providers?.[name];
@@ -163,25 +189,32 @@ export function createRouter(config: RouterConfig) {
     const tasks = participants.map(async (name) => {
       const perKey = cacheKey(name, query, options);
       const perCached = cache.get(perKey);
-      // Only reuse entries that genuinely belong to this provider: a single-mode
-      // fallback caches the fallback provider's results under the requested
-      // primary's key (fellBack=true), and reusing those here would misattribute
-      // results and hide the primary's failure from failedProviders reporting.
-      if (perCached && !perCached.fellBack && perCached.provider === name) {
-        return perCached.results;
-      }
+      if (perCached && !perCached.fellBack && perCached.provider === name) return perCached.results;
       const provider = await providerFor(name);
-      await limiterFor(name)?.acquire();
-      const signal = AbortSignal.timeout(config.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-      const results = await provider.search(query, { ...options, signal });
-      cache.set(perKey, {
-        provider: name,
-        requestedProvider: undefined,
-        fellBack: false,
-        results,
-        markdown: normalizeResults(query, name, results),
-      });
-      return results;
+      let lastError: unknown;
+      for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+        try {
+          await limiterFor(name)?.acquire();
+          const signal = AbortSignal.timeout(config.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+          const results = await provider.search(query, { ...options, signal });
+          cache.set(perKey, {
+            provider: name,
+            requestedProvider: undefined,
+            fellBack: false,
+            results,
+            markdown: normalizeResults(query, name, results),
+          });
+          return results;
+        } catch (error) {
+          lastError = error;
+          if (attempt <= MAX_RETRIES && isTransientSearchError(error)) {
+            await sleepImpl(backoffMs(attempt));
+            continue;
+          }
+          throw error;
+        }
+      }
+      throw lastError;
     });
     const settled = await Promise.allSettled(tasks);
 
@@ -278,33 +311,44 @@ export function createRouter(config: RouterConfig) {
 
     for (const name of attemptChain) {
       try {
-        // Resolve the provider before consuming a rate-limit token so that a
+        // Resolve the provider before consuming any rate-limit token so that a
         // provider which fails to load (e.g. missing API key) does not burn a
         // token, and limiter construction errors join the combined error.
         const provider = await providerFor(name);
-        await limiterFor(name)?.acquire();
-        const signal = AbortSignal.timeout(config.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-        const results = await provider.search(query, { ...options, signal });
-        const markdown = normalizeResults(query, name, results);
-        const fellBack = name !== effectivePrimary;
-        const value: CacheValue = {
-          provider: name,
-          requestedProvider: fellBack ? effectivePrimary : undefined,
-          fellBack,
-          results,
-          markdown,
-        };
-        cache.set(key, value);
-        return {
-          query,
-          provider: value.provider,
-          requestedProvider: value.requestedProvider,
-          fellBack: value.fellBack,
-          results,
-          markdown,
-          cached: false,
-          elapsedMs: Date.now() - startedAt,
-        };
+        for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+          try {
+            await limiterFor(name)?.acquire();
+            const signal = AbortSignal.timeout(config.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+            const results = await provider.search(query, { ...options, signal });
+            const markdown = normalizeResults(query, name, results);
+            const fellBack = name !== effectivePrimary;
+            const value: CacheValue = {
+              provider: name,
+              requestedProvider: fellBack ? effectivePrimary : undefined,
+              fellBack,
+              results,
+              markdown,
+            };
+            cache.set(key, value);
+            return {
+              query,
+              provider: value.provider,
+              requestedProvider: value.requestedProvider,
+              fellBack: value.fellBack,
+              results,
+              markdown,
+              cached: false,
+              elapsedMs: Date.now() - startedAt,
+            };
+          } catch (error) {
+            if (attempt <= MAX_RETRIES && isTransientSearchError(error)) {
+              await sleepImpl(backoffMs(attempt));
+              continue;
+            }
+            throw error;
+          }
+        }
+        throw new Error(`${name}: exhausted retries`);
       } catch (error) {
         errors.push(`${name}: ${error instanceof Error ? error.message : String(error)}`);
       }
