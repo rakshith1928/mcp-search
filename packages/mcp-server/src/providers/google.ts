@@ -44,6 +44,7 @@ export function createGoogleProvider(options: GoogleProviderOptions = {}): Searc
 
       const response = await fetchImpl(`${GOOGLE_ENDPOINT}?${params}`, {
         headers: { Accept: "application/json" },
+        signal: searchOptions.signal,
       });
 
       if (!response.ok) {

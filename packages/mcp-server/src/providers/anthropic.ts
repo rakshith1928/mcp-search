@@ -21,7 +21,10 @@ export interface AnthropicMessageResponse {
 /** Minimal structural view of the Anthropic client used by the provider. */
 export interface AnthropicClientLike {
   messages: {
-    create(params: Record<string, unknown>): Promise<AnthropicMessageResponse>;
+    create(
+      params: Record<string, unknown>,
+      options?: { signal?: AbortSignal },
+    ): Promise<AnthropicMessageResponse>;
   };
 }
 
@@ -67,12 +70,15 @@ export async function createAnthropicProvider(
     name: "anthropic",
 
     async search(query: string, searchOptions: SearchOptions = {}): Promise<SearchResult[]> {
-      const response = await client.messages.create({
-        model: ANTHROPIC_MODEL,
-        max_tokens: MAX_TOKENS,
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: MAX_USES }],
-        messages: [{ role: "user", content: query }],
-      });
+      const response = await client.messages.create(
+        {
+          model: ANTHROPIC_MODEL,
+          max_tokens: MAX_TOKENS,
+          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: MAX_USES }],
+          messages: [{ role: "user", content: query }],
+        },
+        { signal: searchOptions.signal },
+      );
 
       const results: SearchResult[] = [];
       for (const block of response.content ?? []) {

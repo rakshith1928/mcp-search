@@ -46,6 +46,7 @@ export function createBraveProvider(options: BraveProviderOptions = {}): SearchP
           Accept: "application/json",
           "X-Subscription-Token": apiKey,
         },
+        signal: searchOptions.signal,
       });
 
       if (!response.ok) {

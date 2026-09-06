@@ -22,7 +22,10 @@ export interface PerplexityChatResponse {
 export interface PerplexityClientLike {
   chat: {
     completions: {
-      create(params: Record<string, unknown>): Promise<PerplexityChatResponse>;
+      create(
+        params: Record<string, unknown>,
+        options?: { signal?: AbortSignal },
+      ): Promise<PerplexityChatResponse>;
     };
   };
 }
@@ -88,10 +91,13 @@ export async function createPerplexityProvider(
     name: "perplexity",
 
     async search(query: string, searchOptions: SearchOptions = {}): Promise<SearchResult[]> {
-      const response = await client.chat.completions.create({
-        model: PERPLEXITY_MODEL,
-        messages: [{ role: "user", content: query }],
-      });
+      const response = await client.chat.completions.create(
+        {
+          model: PERPLEXITY_MODEL,
+          messages: [{ role: "user", content: query }],
+        },
+        { signal: searchOptions.signal },
+      );
       return extractResults(response.choices?.[0]?.message, searchOptions.maxResults);
     },
   };

@@ -25,7 +25,10 @@ export interface OpenAIResponsesResponse {
 /** Minimal structural view of the OpenAI client used by the provider. */
 export interface OpenAIClientLike {
   responses: {
-    create(params: Record<string, unknown>): Promise<OpenAIResponsesResponse>;
+    create(
+      params: Record<string, unknown>,
+      options?: { signal?: AbortSignal },
+    ): Promise<OpenAIResponsesResponse>;
   };
 }
 
@@ -67,11 +70,14 @@ export async function createOpenAIProvider(
     name: "openai",
 
     async search(query: string, searchOptions: SearchOptions = {}): Promise<SearchResult[]> {
-      const response = await client.responses.create({
-        model: OPENAI_MODEL,
-        input: query,
-        tools: [{ type: "web_search" }],
-      });
+      const response = await client.responses.create(
+        {
+          model: OPENAI_MODEL,
+          input: query,
+          tools: [{ type: "web_search" }],
+        },
+        { signal: searchOptions.signal },
+      );
 
       const results: SearchResult[] = [];
       for (const outputItem of response.output ?? []) {

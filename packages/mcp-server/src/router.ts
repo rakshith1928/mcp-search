@@ -33,8 +33,11 @@ export interface RouterConfig {
   limiters?: Partial<Record<ProviderName, Pick<RateLimiter, "acquire">>>;
   /** Parallel participants; overrides the env presence scan when set. */
   parallelParticipants?: ProviderName[];
+  /** Per-attempt request timeout in ms (default 30000). */
+  timeoutMs?: number;
 }
 
+const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_CACHE_TTL_MS = 5 * 60_000;
 const DEFAULT_CACHE_MAX_ENTRIES = 500;
 
@@ -169,7 +172,8 @@ export function createRouter(config: RouterConfig) {
       }
       const provider = await providerFor(name);
       await limiterFor(name)?.acquire();
-      const results = await provider.search(query, options);
+      const signal = AbortSignal.timeout(config.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+      const results = await provider.search(query, { ...options, signal });
       cache.set(perKey, {
         provider: name,
         requestedProvider: undefined,
@@ -279,7 +283,8 @@ export function createRouter(config: RouterConfig) {
         // token, and limiter construction errors join the combined error.
         const provider = await providerFor(name);
         await limiterFor(name)?.acquire();
-        const results = await provider.search(query, options);
+        const signal = AbortSignal.timeout(config.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+        const results = await provider.search(query, { ...options, signal });
         const markdown = normalizeResults(query, name, results);
         const fellBack = name !== effectivePrimary;
         const value: CacheValue = {

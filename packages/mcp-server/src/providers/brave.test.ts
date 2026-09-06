@@ -111,6 +111,22 @@ describe("createBraveProvider", () => {
     expect(await provider.search("nothing found")).toEqual([]);
   });
 
+  test("forwards the abort signal to fetch", async () => {
+    const captured: { init?: Parameters<typeof fetch>[1] } = {};
+    const provider = createBraveProvider({
+      apiKey: "test-key",
+      fetchImpl: (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+        captured.init = init;
+        return new Response(JSON.stringify({ web: { results: [] } }), { status: 200 });
+      }) as unknown as typeof fetch,
+    });
+
+    const controller = new AbortController();
+    await provider.search("q", { signal: controller.signal });
+
+    expect(captured.init?.signal).toBe(controller.signal);
+  });
+
   test("throws a clear error when no API key is available", () => {
     const prev = process.env.BRAVE_API_KEY;
     delete process.env.BRAVE_API_KEY;

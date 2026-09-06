@@ -120,6 +120,9 @@ export function routerConfigFromEnv(
     config.parallelParticipants = participants;
   }
 
+  if (env.OMNISEARCH_TIMEOUT_MS) {
+    config.timeoutMs = positiveIntFromEnv("OMNISEARCH_TIMEOUT_MS", env.OMNISEARCH_TIMEOUT_MS);
+  }
   if (env.OMNISEARCH_CACHE_TTL_MS) {
     config.cacheTtlMs = positiveIntFromEnv("OMNISEARCH_CACHE_TTL_MS", env.OMNISEARCH_CACHE_TTL_MS);
   }

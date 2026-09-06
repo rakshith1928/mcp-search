@@ -31,6 +31,8 @@ export interface SearchResult {
 export interface SearchOptions {
   /** Maximum number of results to request from the provider. */
   maxResults?: number;
+  /** Router-injected per-attempt abort signal; not exposed in tool schemas. */
+  signal?: AbortSignal;
 }
 
 /** A provider capable of executing web searches. */

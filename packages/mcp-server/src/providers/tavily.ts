@@ -39,6 +39,7 @@ export function createTavilyProvider(options: TavilyProviderOptions = {}): Searc
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ query, max_results: maxResults }),
+        signal: searchOptions.signal,
       });
 
       if (!response.ok) {

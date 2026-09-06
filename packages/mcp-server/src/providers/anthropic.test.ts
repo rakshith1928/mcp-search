@@ -95,6 +95,24 @@ describe("createAnthropicProvider", () => {
     ).rejects.toThrow(/npm install @anthropic-ai\/sdk/);
   });
 
+  test("forwards the abort signal as SDK request options", async () => {
+    const capturedOptions: Array<{ signal?: AbortSignal } | undefined> = [];
+    const client: AnthropicClientLike = {
+      messages: {
+        create: (async (params: Record<string, unknown>, options?: { signal?: AbortSignal }) => {
+          capturedOptions.push(options);
+          return { content: [] };
+        }) as AnthropicClientLike["messages"]["create"],
+      },
+    };
+    const provider = await createAnthropicProvider({ apiKey: "test-key", client });
+
+    const controller = new AbortController();
+    await provider.search("q", { signal: controller.signal });
+
+    expect(capturedOptions[0]?.signal).toBe(controller.signal);
+  });
+
   test("constructs a real SDK client when none is injected", async () => {
     const provider = await createAnthropicProvider({ apiKey: "test-key" });
     expect(provider.name).toBe("anthropic");

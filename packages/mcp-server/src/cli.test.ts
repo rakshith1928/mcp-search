@@ -195,3 +195,16 @@ describe("parallel flag and participant config", () => {
     expect(() => routerConfigFromEnv({ OMNISEARCH_PARALLEL: "brave, exa" })).toThrow(/exa/);
   });
 });
+
+describe("OMNISEARCH_TIMEOUT_MS", () => {
+  test("parses the timeout and defaults to 30000", () => {
+    expect(routerConfigFromEnv({})).toEqual({ primary: "brave" });
+    expect(routerConfigFromEnv({ OMNISEARCH_TIMEOUT_MS: "5000" })).toEqual({
+      primary: "brave",
+      timeoutMs: 5000,
+    });
+    expect(() => routerConfigFromEnv({ OMNISEARCH_TIMEOUT_MS: "soon" })).toThrow(
+      /OMNISEARCH_TIMEOUT_MS/,
+    );
+  });
+});

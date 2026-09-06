@@ -28,7 +28,10 @@ export interface MoonshotChatResponse {
 export interface MoonshotClientLike {
   chat: {
     completions: {
-      create(params: Record<string, unknown>): Promise<MoonshotChatResponse>;
+      create(
+        params: Record<string, unknown>,
+        options?: { signal?: AbortSignal },
+      ): Promise<MoonshotChatResponse>;
     };
   };
 }
@@ -94,12 +97,15 @@ export async function createMoonshotProvider(
       const messages: Array<Record<string, unknown>> = [{ role: "user", content: query }];
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-        const response = await client.chat.completions.create({
-          model: MOONSHOT_MODEL,
-          messages,
-          tools: [{ type: "builtin_function", function: { name: "$web_search" } }],
-          thinking: { type: "disabled" },
-        });
+        const response = await client.chat.completions.create(
+          {
+            model: MOONSHOT_MODEL,
+            messages,
+            tools: [{ type: "builtin_function", function: { name: "$web_search" } }],
+            thinking: { type: "disabled" },
+          },
+          { signal: searchOptions.signal },
+        );
 
         const choice = response.choices?.[0];
         const message = choice?.message;

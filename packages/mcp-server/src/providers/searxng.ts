@@ -30,6 +30,7 @@ export function createSearxngProvider(options: SearxngProviderOptions = {}): Sea
 
       const response = await fetchImpl(`${baseUrl}/search?${params}`, {
         headers: { Accept: "application/json" },
+        signal: searchOptions.signal,
       });
 
       if (!response.ok) {

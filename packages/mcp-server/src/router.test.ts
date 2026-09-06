@@ -122,7 +122,8 @@ describe("createRouter", () => {
 
     await router.search("typescript", { maxResults: 7 });
 
-    expect(received).toEqual({ maxResults: 7 });
+    expect(received).toMatchObject({ maxResults: 7 });
+    expect((received as { signal?: unknown }).signal).toBeInstanceOf(AbortSignal);
   });
 
   test("respects an injected rate limiter per attempt", async () => {
@@ -579,5 +580,49 @@ describe("createRouter parallel mode", () => {
 
     expect(response.failedProviders).toEqual([]);
     expect([...acquisitions].sort()).toEqual(["brave", "openai"]);
+  });
+});
+
+describe("timeout propagation", () => {
+  test("passes a fresh AbortSignal to the provider on every attempt", async () => {
+    const signals: Array<AbortSignal | undefined> = [];
+    const provider: SearchProvider = {
+      name: "brave",
+      search: async (_query, options) => {
+        signals.push(options?.signal);
+        return [{ title: "T", url: "https://example.com", snippet: "" }];
+      },
+    };
+    const router = createRouter({ primary: "brave", timeoutMs: 1234, providers: { brave: provider } });
+
+    await router.search("q");
+
+    expect(signals).toHaveLength(1);
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
+    await router.search("q2", {}, undefined, true);
+    expect(signals).toHaveLength(2);
+    expect(signals[0]).not.toBe(signals[1]);
+  });
+
+  test("parallel mode forwards the signal too", async () => {
+    const signals: Array<AbortSignal | undefined> = [];
+    const provider: SearchProvider = {
+      name: "brave",
+      search: async (_query, options) => {
+        signals.push(options?.signal);
+        return [{ title: "T", url: "https://example.com", snippet: "" }];
+      },
+    };
+    const router = createRouter({
+      primary: "brave",
+      timeoutMs: 1234,
+      parallelParticipants: ["brave"],
+      providers: { brave: provider },
+    });
+
+    await router.search("q", {}, undefined, true);
+
+    expect(signals).toHaveLength(1);
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
   });
 });
