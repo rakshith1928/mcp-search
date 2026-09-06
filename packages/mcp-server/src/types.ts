@@ -6,16 +6,13 @@
  * with caching, rate limiting, and fallback chains.
  */
 
-/** All search providers available in v1.1. */
-export type ProviderName =
-  | "anthropic"
-  | "openai"
-  | "brave"
-  | "moonshot"
-  | "tavily"
-  | "google"
-  | "searxng"
-  | "perplexity";
+/**
+ * All search providers — derived from the provider catalog (ADR-0008), which
+ * is the single home of provider facts. Type-only import: no runtime cycle.
+ */
+import type { ProviderName } from "./providers/catalog.js";
+
+export type { ProviderName };
 
 /** A single normalized search result. */
 export interface SearchResult {

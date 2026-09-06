@@ -1,18 +1,7 @@
 import type { ProviderName } from "./types.js";
+import { ENV_BY_PROVIDER } from "./providers/catalog.js";
 
-/**
- * The environment variable each provider reads its API key from.
- */
-export const ENV_BY_PROVIDER: Record<ProviderName, string> = {
-  brave: "BRAVE_API_KEY",
-  anthropic: "ANTHROPIC_API_KEY",
-  openai: "OPENAI_API_KEY",
-  moonshot: "MOONSHOT_API_KEY",
-  tavily: "TAVILY_API_KEY",
-  google: "GOOGLE_API_KEY",
-  searxng: "SEARXNG_BASE_URL",
-  perplexity: "PERPLEXITY_API_KEY",
-};
+export { ENV_BY_PROVIDER };
 
 /**
  * Read a required environment variable, throwing a clear error when unset.

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PROVIDER_NAMES } from "./providers/catalog.js";
 import type { ProviderName } from "./types.js";
 
 export const OMNISEARCH_TOOL_NAME = "omnisearch";
@@ -19,7 +20,7 @@ export const omnisearchInputSchema = {
     .optional()
     .describe("Maximum results to return (default 10)"),
   provider: z
-    .enum(["brave", "anthropic", "openai", "moonshot", "tavily", "google", "searxng", "perplexity"])
+    .enum(PROVIDER_NAMES)
     .optional()
     .describe("Override the primary provider for this search"),
   parallel: z

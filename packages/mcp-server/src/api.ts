@@ -18,6 +18,7 @@ export {
   type RateLimitConfig,
 } from "./rate-limiter.js";
 export * from "./providers/index.js";
+export { PROVIDERS, PROVIDER_NAMES, type ProviderKind, type ProviderLoadOptions } from "./providers/catalog.js";
 export {
   ENV_BY_PROVIDER,
   loadOptionalSdk,
