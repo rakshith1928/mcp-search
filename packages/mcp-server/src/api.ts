@@ -6,7 +6,7 @@
  */
 
 export * from "./types.js";
-export * from "./router.js";
+export * from "./router/index.js";
 export * from "./normalize.js";
 export * from "./cache.js";
 export * from "./tool-schema.js";

@@ -1,6 +1,5 @@
 import { AVAILABLE_PROVIDERS } from "./providers/index.js";
-import { buildSearchChain } from "./tool-schema.js";
-import { createRouter, type RouterConfig } from "./router.js";
+import { createRouter, type RouterConfig } from "./router/index.js";
 import type { ProviderName } from "./types.js";
 
 export const USAGE = "Usage: omnisearch search <query> [--provider <name>] [--max <n>] [--parallel]";
@@ -173,8 +172,11 @@ export async function runSearch(argv: string[], io: RunSearchIo = {}): Promise<n
 
   const router = createRouter(config);
   try {
-    const chain = buildSearchChain(parsed.provider, config.primary, config.fallback);
-    const response = await router.search(parsed.query, { maxResults: parsed.max }, chain, parsed.parallel);
+    const response = await router.search(parsed.query, {
+      maxResults: parsed.max,
+      provider: parsed.provider,
+      parallel: parsed.parallel,
+    });
     stdout.write(`${response.markdown}\n`);
     return 0;
   } catch (error) {

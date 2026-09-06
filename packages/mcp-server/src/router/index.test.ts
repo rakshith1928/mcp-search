@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { createRouter, isTransientSearchError, type RouterConfig } from "./router.js";
-import type { ProviderName, SearchProvider, SearchResult } from "./types.js";
+import { createRouter, isTransientSearchError, type RouterConfig } from "./index.js";
+import type { ProviderName, SearchProvider, SearchResult } from "../types.js";
 
 function fakeProvider(name: SearchProvider["name"], resultCount = 2): SearchProvider {
   return {
@@ -185,7 +185,7 @@ describe("createRouter", () => {
   });
 
   test("a provider that fails to load does not acquire its rate limiter", async () => {
-    const { clearProviderCache } = await import("./providers/index.js");
+    const { clearProviderCache } = await import("../providers/index.js");
     const prev = process.env.BRAVE_API_KEY;
     delete process.env.BRAVE_API_KEY;
     clearProviderCache();
@@ -236,7 +236,7 @@ describe("createRouter chain override", () => {
       config({ providers: { brave: fakeProvider("brave"), openai: fakeProvider("openai") } }),
     );
 
-    const response = await router.search("typescript", {}, ["openai"]);
+    const response = await router.search("typescript", { provider: "openai" });
 
     expect(response.provider).toBe("openai");
     expect(response.fellBack).toBe(false);
@@ -245,14 +245,15 @@ describe("createRouter chain override", () => {
   test("falls back within the override chain", async () => {
     const router = createRouter(
       config({
+        fallback: ["brave"],
         providers: {
           brave: fakeProvider("brave"),
-          openai: failingProvider("openai", "down"),
+          openai: failingProvider("openai", "HTTP 401"),
         },
       }),
     );
 
-    const response = await router.search("typescript", {}, ["openai", "brave"]);
+    const response = await router.search("typescript", { provider: "openai" });
 
     expect(response.provider).toBe("brave");
     expect(response.fellBack).toBe(true);
@@ -279,7 +280,7 @@ describe("createRouter chain override", () => {
     const router = createRouter(config({ providers: { brave, openai } }));
 
     await router.search("q");
-    await router.search("q", {}, ["openai"]);
+    await router.search("q", { provider: "openai" });
     await router.search("q"); // brave result still cached
 
     expect(braveCalls).toBe(1);
@@ -304,7 +305,7 @@ describe("createRouter parallel mode", () => {
       providers: { brave: fakeProvider("brave", [b1, b2]), openai: fakeProvider("openai", [o1, o2]) },
     });
 
-    const response = await router.search("q", {}, undefined, true);
+    const response = await router.search("q", { parallel: true });
 
     expect(response.mode).toBe("parallel");
     expect(response.providers).toEqual(["brave", "openai"]);
@@ -322,7 +323,7 @@ describe("createRouter parallel mode", () => {
       providers: { brave: fakeProvider("brave", [b1]), openai: fakeProvider("openai", [dupe, o2]) },
     });
 
-    const response = await router.search("q", {}, undefined, true);
+    const response = await router.search("q", { parallel: true });
 
     expect(response.results).toEqual([b1, o2]);
   });
@@ -337,7 +338,7 @@ describe("createRouter parallel mode", () => {
       },
     });
 
-    const response = await router.search("q", { maxResults: 3 }, undefined, true);
+    const response = await router.search("q", { maxResults: 3, parallel: true });
 
     expect(response.results).toEqual([b1, o1, b2]);
   });
@@ -349,7 +350,7 @@ describe("createRouter parallel mode", () => {
       providers: { brave: failingProvider("brave", "down"), openai: fakeProvider("openai", [o1]) },
     });
 
-    const response = await router.search("q", {}, undefined, true);
+    const response = await router.search("q", { parallel: true });
 
     expect(response.failedProviders).toEqual(["brave"]);
     expect(response.providers).toEqual(["brave", "openai"]);
@@ -364,7 +365,7 @@ describe("createRouter parallel mode", () => {
       providers: { brave: failingProvider("brave", "down"), openai: failingProvider("openai", "also down") },
     });
 
-    expect(router.search("q", {}, undefined, true)).rejects.toThrow(/All search providers failed/);
+    expect(router.search("q", { parallel: true })).rejects.toThrow(/All search providers failed/);
   });
 
   test("caches per participant and the merged response", async () => {
@@ -390,8 +391,8 @@ describe("createRouter parallel mode", () => {
       },
     });
 
-    await router.search("q", {}, undefined, true);
-    await router.search("q", {}, undefined, true);
+    await router.search("q", { parallel: true });
+    await router.search("q", { parallel: true });
     await router.search("q");
 
     expect(braveCalls).toBe(1);
@@ -428,7 +429,7 @@ describe("createRouter parallel mode", () => {
     expect(single.provider).toBe("openai");
     expect(single.fellBack).toBe(true);
 
-    const parallel = await router.search("q", {}, undefined, true);
+    const parallel = await router.search("q", { parallel: true });
 
     expect(parallel.mode).toBe("parallel");
     expect(parallel.failedProviders).toEqual(["brave"]);
@@ -465,7 +466,7 @@ describe("createRouter parallel mode", () => {
         },
       });
 
-      const response = await router.search("q", {}, undefined, true);
+      const response = await router.search("q", { parallel: true });
 
       expect(response.providers).toEqual(["openai"]);
       expect(openaiCalls).toBe(1);
@@ -488,7 +489,7 @@ describe("createRouter parallel mode", () => {
         providers: { openai: fakeProvider("openai", [o1]) },
       });
 
-      const response = await router.search("q", {}, undefined, true);
+      const response = await router.search("q", { parallel: true });
 
       expect(response.providers).toEqual(["openai"]);
       expect(response.results).toEqual([o1]);
@@ -511,7 +512,7 @@ describe("createRouter parallel mode", () => {
         providers: { brave: fakeProvider("brave", [b1]) },
       });
 
-      const response = await router.search("q", {}, undefined, true);
+      const response = await router.search("q", { parallel: true });
 
       expect(response.mode).toBeUndefined();
       expect(response.provider).toBe("brave");
@@ -537,7 +538,7 @@ describe("createRouter parallel mode", () => {
       config({ parallelParticipants: ["brave", "brave"], providers: { brave } }),
     );
 
-    const response = await router.search("q", {}, undefined, true);
+    const response = await router.search("q", { parallel: true });
 
     expect(response.providers).toEqual(["brave"]);
     expect(braveCalls).toBe(1);
@@ -552,7 +553,7 @@ describe("createRouter parallel mode", () => {
       }),
     );
 
-    expect(router.search("q", {}, undefined, true)).rejects.toThrow(
+    expect(router.search("q", { parallel: true })).rejects.toThrow(
       /Invalid parallel participant 'exa'[\s\S]*Available:/,
     );
   });
@@ -572,7 +573,7 @@ describe("createRouter parallel mode", () => {
       }),
     );
 
-    const response = await router.search("q", {}, undefined, true);
+    const response = await router.search("q", { parallel: true });
 
     expect(response.failedProviders).toEqual([]);
     expect([...acquisitions].sort()).toEqual(["brave", "openai"]);
@@ -616,7 +617,7 @@ describe("timeout propagation", () => {
       providers: { brave: provider },
     });
 
-    await router.search("q", {}, undefined, true);
+    await router.search("q", { parallel: true });
 
     expect(signals).toHaveLength(1);
     expect(signals[0]).toBeInstanceOf(AbortSignal);
@@ -783,7 +784,7 @@ describe("retry with backoff", () => {
       sleepImpl: async () => {},
     });
 
-    const response = await router.search("q", {}, undefined, true);
+    const response = await router.search("q", { parallel: true });
 
     expect(braveAttempts).toBe(2);
     expect(response.failedProviders).toEqual([]);

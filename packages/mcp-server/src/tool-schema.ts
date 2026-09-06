@@ -35,16 +35,3 @@ export type OmnisearchToolArgs = {
   provider?: ProviderName;
   parallel?: boolean;
 };
-
-/**
- * Effective attempt chain for a call: a provider override becomes the primary
- * and the configured fallbacks follow (minus duplicates of the override).
- */
-export function buildSearchChain(
-  override: ProviderName | undefined,
-  primary: ProviderName,
-  fallback: ProviderName[] = [],
-): ProviderName[] | undefined {
-  if (!override) return undefined;
-  return [override, ...fallback.filter((name) => name !== override)];
-}

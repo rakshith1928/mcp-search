@@ -1,9 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { routerConfigFromEnv } from "./cli.js";
-import { createRouter, type Router, type RouterConfig } from "./router.js";
+import { createRouter, type Router, type RouterConfig } from "./router/index.js";
 import {
-  buildSearchChain,
   OMNISEARCH_TOOL_DESCRIPTION,
   OMNISEARCH_TOOL_NAME,
   omnisearchInputSchema,
@@ -38,8 +37,7 @@ export function createOmnisearchServer(config: Partial<RouterConfig> = {}): {
       inputSchema: omnisearchInputSchema,
     },
     async ({ query, maxResults, provider, parallel }) => {
-      const chain = buildSearchChain(provider, router.config.primary, router.config.fallback);
-      const response = await router.search(query, { maxResults }, chain, parallel);
+      const response = await router.search(query, { maxResults, provider, parallel });
       return { content: [{ type: "text", text: response.markdown }] };
     },
   );

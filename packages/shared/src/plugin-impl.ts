@@ -1,5 +1,4 @@
 import {
-  buildSearchChain,
   createRouter,
   OMNISEARCH_TOOL_DESCRIPTION,
   OMNISEARCH_TOOL_NAME,
@@ -61,13 +60,11 @@ export function createPluginHooks<TTool>(
     description: OMNISEARCH_TOOL_DESCRIPTION,
     args: omnisearchInputSchema,
     execute: async (args) => {
-      const chain = buildSearchChain(args.provider, router.config.primary, router.config.fallback);
-      const response = await router.search(
-        args.query,
-        { maxResults: args.maxResults ?? options.defaultMaxResults },
-        chain,
-        args.parallel,
-      );
+      const response = await router.search(args.query, {
+        maxResults: args.maxResults ?? options.defaultMaxResults,
+        provider: args.provider,
+        parallel: args.parallel,
+      });
       return response.markdown;
     },
   };
