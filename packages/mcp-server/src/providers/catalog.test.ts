@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_RATE_LIMITS, PROVIDERS, PROVIDER_NAMES } from "./catalog.js";
+import { DEFAULT_RATE_LIMITS, ENV_BY_PROVIDER, PROVIDERS, PROVIDER_NAMES } from "./catalog.js";
 import { AVAILABLE_PROVIDERS, PROVIDER_LOADERS } from "./index.js";
 
 const EXPECTED_ORDER = [
@@ -37,7 +37,18 @@ describe("provider catalog", () => {
     for (const p of PROVIDERS) {
       expect(DEFAULT_RATE_LIMITS[p.name]).toEqual(p.rateLimit);
       expect(PROVIDER_LOADERS[p.name]).toBeDefined();
+      expect(ENV_BY_PROVIDER[p.name]).toBe(p.envKey);
     }
+  });
+
+  test("the tool-schema zod enum derives from the catalog, not a hand-written list", async () => {
+    const { omnisearchInputSchema } = await import("../tool-schema.js");
+    const providerSchema = omnisearchInputSchema.provider as { parse(value: unknown): unknown };
+
+    for (const name of EXPECTED_ORDER) {
+      expect(providerSchema.parse(name)).toBe(name);
+    }
+    expect(() => providerSchema.parse("exa")).toThrow();
   });
 
   test("each loader constructs its provider through its dynamic import", async () => {

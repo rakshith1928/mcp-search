@@ -20,7 +20,8 @@ descriptor per provider — `{ name, envKey, kind: "fetch" | "llm",
 rateLimit, load }`. The ProviderName union is fully derived from the table
 (`typeof PROVIDERS[number]["name"]`), so the compiler rejects any provider
 claim the table does not carry. Loaders merge into the table
-(PROVIDER_LOADERS disappears). AVAILABLE_PROVIDERS, ENV_BY_PROVIDER,
+(PROVIDER_LOADERS becomes a derived view — the registry keeps the map shape
+for its injectable-loaders parameter). AVAILABLE_PROVIDERS, ENV_BY_PROVIDER,
 DEFAULT_RATE_LIMITS, and the tool-schema zod enum become derived views.
 The catalog is public package surface (`api.ts`) — v1.3's `doctor`
 consumes it.

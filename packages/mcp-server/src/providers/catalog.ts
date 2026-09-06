@@ -102,10 +102,10 @@ export type ProviderName = (typeof PROVIDERS)[number]["name"];
 
 /** Derived view: name → the provider's required env var (or config value). */
 export const ENV_BY_PROVIDER = Object.fromEntries(
-  PROVIDERS.map((p) => [p.name, p.envKey]),
+  PROVIDERS.map((p): [ProviderName, string] => [p.name, p.envKey]),
 ) as Record<ProviderName, string>;
 
 /** Derived view: name → default rate limit. */
 export const DEFAULT_RATE_LIMITS = Object.fromEntries(
-  PROVIDERS.map((p) => [p.name, p.rateLimit]),
+  PROVIDERS.map((p): [ProviderName, RateLimitConfig] => [p.name, p.rateLimit]),
 ) as Record<ProviderName, RateLimitConfig>;

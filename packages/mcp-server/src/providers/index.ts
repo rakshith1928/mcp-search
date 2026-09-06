@@ -21,7 +21,7 @@ export interface ProviderFactoryOptions extends ProviderLoadOptions {}
  * every catalog row carries a loader.
  */
 export const PROVIDER_LOADERS: Record<ProviderName, ProviderLoader> = Object.fromEntries(
-  PROVIDERS.map((p) => [p.name, { create: p.load }]),
+  PROVIDERS.map((p): [ProviderName, ProviderLoader] => [p.name, { create: p.load }]),
 ) as Record<ProviderName, ProviderLoader>;
 
 // Provider cache: default-constructed providers are cached by name so

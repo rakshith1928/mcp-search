@@ -5,7 +5,7 @@ Living document — terms are added as decisions land (grill-with-docs).
 | Term | Meaning |
 |---|---|
 | **Provider** | A `SearchProvider` implementation (one file) that executes web searches for one upstream service. 8 in v1.1: brave, anthropic, openai, moonshot, tavily, google, searxng, perplexity. |
-| **Registry** | `providers/index.ts` — lazily dynamic-imports a provider's module the first time that provider is requested; caches default-constructed instances. `AVAILABLE_PROVIDERS` is the advertised set; loaders exist only for implemented providers. |
+| **Registry** | `providers/index.ts` — lazily dynamic-imports a provider's module the first time that provider is requested; caches default-constructed instances. `AVAILABLE_PROVIDERS` and the loader map are derived views over the catalog (loaders are total since ADR-0008). |
 | **Router** | `createRouter(config)` — central search path: cache check → resolve provider → acquire rate-limit token → search, with ordered fallback chain; also owns parallel fan-out. |
 | **Fallback chain** | `[primary, ...fallback]` tried in order on failure; each attempt caches under its own key, fallback results are marked `fellBack` with `requestedProvider` set. |
 | **Parallel fan-out** | Opt-in `parallel` mode: `Promise.allSettled` over participant providers, each with its own limiter and cache key. |
