@@ -27,7 +27,7 @@ export function normalizeResults(
 
   results.forEach((result, index) => {
     const n = index + 1;
-    lines.push(`${n}. [${result.title}](${result.url})`);
+    lines.push(`${n}. [${escapeMarkdownTitle(result.title)}](${result.url})`);
     const snippet = stripHtml(result.snippet);
     if (snippet) lines.push(`   ${snippet}`);
   });
@@ -38,6 +38,14 @@ export function normalizeResults(
   });
 
   return lines.join("\n");
+}
+
+/**
+ * Escape markdown-significant characters in provider-supplied titles so a
+ * malformed title cannot break the response's link structure (ADR-0007).
+ */
+export function escapeMarkdownTitle(title: string): string {
+  return title.replace(/[[\]()]/g, "\\$&");
 }
 
 /**

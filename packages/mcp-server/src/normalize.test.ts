@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { appendFailureNote, normalizeResults } from "./normalize.js";
+import { appendFailureNote, escapeMarkdownTitle, normalizeResults } from "./normalize.js";
 import type { SearchResult } from "./types.js";
 
 const twoResults: SearchResult[] = [
@@ -75,5 +75,22 @@ describe("via label override and failure note", () => {
   test("appendFailureNote returns markdown unchanged when nothing failed", () => {
     const markdown = normalizeResults("q", "brave", twoResults);
     expect(appendFailureNote(markdown, [])).toBe(markdown);
+  });
+});
+
+describe("escapeMarkdownTitle", () => {
+  test("escapes markdown-significant characters in titles", () => {
+    const markdown = normalizeResults("q", "brave", [
+      { title: "Array methods [map()] (2026)", url: "https://example.com/a(b)", snippet: "s" },
+    ]);
+
+    expect(markdown).toContain("1. [Array methods \\[map\\(\\)\\] \\(2026\\)](https://example.com/a(b))");
+  });
+
+  test("leaves clean titles unchanged", () => {
+    const markdown = normalizeResults("q", "brave", [
+      { title: "Plain title", url: "https://example.com", snippet: "" },
+    ]);
+    expect(markdown).toContain("1. [Plain title](https://example.com)");
   });
 });
