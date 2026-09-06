@@ -118,6 +118,7 @@ dedupes by URL, and notes any providers that failed. Agents opt in with the
 | `OMNISEARCH_PROVIDER` | Primary provider | `brave` |
 | `OMNISEARCH_FALLBACK` | Comma-separated fallback chain | — |
 | `OMNISEARCH_PARALLEL` | Comma-separated participants for `--parallel` fan-out; defaults to every provider with credentials set | — |
+| `OMNISEARCH_TIMEOUT_MS` | Per-request timeout for every provider call (AbortSignal) | `30000` |
 | `OMNISEARCH_RATE_LIMIT_<PROVIDER>` | `<limit>/<windowSeconds>`, e.g. `15/60` | brave `15/60`, LLM providers `10/60` |
 | `OMNISEARCH_CACHE_TTL_MS` | Result cache TTL | `300000` |
 | `OMNISEARCH_CACHE_MAX_ENTRIES` | Result cache capacity | `500` |
