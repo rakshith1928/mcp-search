@@ -11,7 +11,7 @@
     },
     "packages/kilocode-plugin": {
       "name": "omnisearch-kilocode",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "dependencies": {
         "@omnisearch/shared": "workspace:*",
       },
@@ -24,7 +24,7 @@
     },
     "packages/mcp-server": {
       "name": "@omnisearch/mcp-server",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "bin": {
         "omnisearch": "./dist/index.js",
       },
@@ -39,7 +39,7 @@
     },
     "packages/opencode-plugin": {
       "name": "omnisearch-opencode",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "dependencies": {
         "@omnisearch/shared": "workspace:*",
       },
@@ -52,7 +52,7 @@
     },
     "packages/shared": {
       "name": "@omnisearch/shared",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "dependencies": {
         "@omnisearch/mcp-server": "workspace:*",
       },

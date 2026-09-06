@@ -1,8 +1,8 @@
-import type { SearchOptions, SearchProvider, SearchResult } from "../types.js";
-import { resolveApiKey, stripHtml } from "../util.js";
+import type { SearchProvider } from "../types.js";
+import { resolveApiKey } from "../util.js";
+import { clampMaxResults, createHttpSearchProvider, toResult } from "./http-search.js";
 
 const TAVILY_ENDPOINT = "https://api.tavily.com/search";
-const DEFAULT_MAX_RESULTS = 10;
 const MAX_RESULTS = 20;
 
 interface TavilyApiResponse {
@@ -20,41 +20,29 @@ export interface TavilyProviderOptions {
  * Tavily provider backed by the pure REST API — no SDK required.
  */
 export function createTavilyProvider(options: TavilyProviderOptions = {}): SearchProvider {
-  const fetchImpl = options.fetchImpl ?? fetch;
   const apiKey = resolveApiKey("tavily", options.apiKey);
 
-  return {
+  return createHttpSearchProvider({
     name: "tavily",
-
-    async search(query: string, searchOptions: SearchOptions = {}): Promise<SearchResult[]> {
-      const maxResults = Math.min(
-        Math.max(1, searchOptions.maxResults ?? DEFAULT_MAX_RESULTS),
-        MAX_RESULTS,
-      );
-
-      const response = await fetchImpl(TAVILY_ENDPOINT, {
+    label: "Tavily",
+    fetchImpl: options.fetchImpl,
+    buildRequest: (query, searchOptions) => ({
+      url: TAVILY_ENDPOINT,
+      init: {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query, max_results: maxResults }),
-        signal: searchOptions.signal,
-      });
-
-      if (!response.ok) {
-        const detail = (await response.text()).slice(0, 200);
-        throw new Error(
-          `Tavily search failed: HTTP ${response.status}${detail ? ` — ${detail}` : ""}`,
-        );
-      }
-
-      const data = (await response.json()) as TavilyApiResponse;
-      return (data.results ?? []).map((result) => ({
-        title: result.title ?? "",
-        url: result.url ?? "",
-        snippet: stripHtml(result.content ?? ""),
-      }));
+        body: JSON.stringify({
+          query,
+          max_results: clampMaxResults(searchOptions.maxResults, MAX_RESULTS),
+        }),
+      },
+    }),
+    parseResponse: (data) => {
+      const { results } = data as TavilyApiResponse;
+      return (results ?? []).map((result) => toResult(result.title, result.url, result.content));
     },
-  };
+  });
 }

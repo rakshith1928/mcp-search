@@ -1,8 +1,8 @@
-import type { SearchOptions, SearchProvider, SearchResult } from "../types.js";
-import { requireEnv, resolveApiKey, stripHtml } from "../util.js";
+import type { SearchProvider } from "../types.js";
+import { requireEnv, resolveApiKey } from "../util.js";
+import { clampMaxResults, createHttpSearchProvider, toResult } from "./http-search.js";
 
 const GOOGLE_ENDPOINT = "https://www.googleapis.com/customsearch/v1";
-const DEFAULT_MAX_RESULTS = 10;
 const GOOGLE_MAX_RESULTS = 10;
 
 interface GoogleApiResponse {
@@ -20,49 +20,28 @@ export interface GoogleProviderOptions {
 
 /**
  * Google Programmable Search provider. Needs both an API key and a search
- * engine ID (cx); the registry validates the key, this factory validates the cx.
+ * engine ID (cx); the factory validates both at construction.
  */
 export function createGoogleProvider(options: GoogleProviderOptions = {}): SearchProvider {
-  const fetchImpl = options.fetchImpl ?? fetch;
   const apiKey = resolveApiKey("google", options.apiKey);
   const searchEngineId = options.searchEngineId ?? requireEnv("GOOGLE_SEARCH_ENGINE_ID");
 
-  return {
+  return createHttpSearchProvider({
     name: "google",
-
-    async search(query: string, searchOptions: SearchOptions = {}): Promise<SearchResult[]> {
-      const num = Math.min(
-        Math.max(1, searchOptions.maxResults ?? DEFAULT_MAX_RESULTS),
-        GOOGLE_MAX_RESULTS,
-      );
-      const params = new URLSearchParams({
+    label: "Google",
+    fetchImpl: options.fetchImpl,
+    buildRequest: (query, searchOptions) => ({
+      url: `${GOOGLE_ENDPOINT}?${new URLSearchParams({
         key: apiKey,
         cx: searchEngineId,
         q: query,
-        num: String(num),
-      });
-
-      const response = await fetchImpl(`${GOOGLE_ENDPOINT}?${params}`, {
-        headers: { Accept: "application/json" },
-        signal: searchOptions.signal,
-      });
-
-      if (!response.ok) {
-        // Redact API keys before embedding response detail in the error.
-        const detail = (await response.text())
-          .slice(0, 200)
-          .replace(/key=[^&\s"']+/g, "key=REDACTED");
-        throw new Error(
-          `Google search failed: HTTP ${response.status}${detail ? ` — ${detail}` : ""}`,
-        );
-      }
-
-      const data = (await response.json()) as GoogleApiResponse;
-      return (data.items ?? []).map((item) => ({
-        title: item.title ?? "",
-        url: item.link ?? "",
-        snippet: stripHtml(item.snippet ?? ""),
-      }));
+        num: String(clampMaxResults(searchOptions.maxResults, GOOGLE_MAX_RESULTS)),
+      })}`,
+      init: { headers: { Accept: "application/json" } },
+    }),
+    parseResponse: (data) => {
+      const { items } = data as GoogleApiResponse;
+      return (items ?? []).map((item) => toResult(item.title, item.link, item.snippet));
     },
-  };
+  });
 }

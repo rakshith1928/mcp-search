@@ -1,6 +1,6 @@
 {
   "name": "omnisearch",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Universal multi-provider web search: MCP server + native plugin wrappers for OpenCode and Kilocode",
   "workspaces": [

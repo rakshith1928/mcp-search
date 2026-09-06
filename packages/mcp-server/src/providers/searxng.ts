@@ -1,7 +1,6 @@
-import type { SearchOptions, SearchProvider, SearchResult } from "../types.js";
-import { requireEnv, stripHtml } from "../util.js";
-
-const DEFAULT_MAX_RESULTS = 10;
+import type { SearchProvider } from "../types.js";
+import { requireEnv } from "../util.js";
+import { createHttpSearchProvider, toResult } from "./http-search.js";
 
 interface SearxngApiResponse {
   results?: Array<{ title?: string; url?: string; content?: string }>;
@@ -19,38 +18,23 @@ export interface SearxngProviderOptions {
  * JSON format enabled (settings: formats: ["html", "json"]).
  */
 export function createSearxngProvider(options: SearxngProviderOptions = {}): SearchProvider {
-  const fetchImpl = options.fetchImpl ?? fetch;
   const baseUrl = (options.baseUrl ?? requireEnv("SEARXNG_BASE_URL")).replace(/\/+$/, "");
 
-  return {
+  return createHttpSearchProvider({
     name: "searxng",
-
-    async search(query: string, searchOptions: SearchOptions = {}): Promise<SearchResult[]> {
-      const params = new URLSearchParams({ q: query, format: "json" });
-
-      const response = await fetchImpl(`${baseUrl}/search?${params}`, {
-        headers: { Accept: "application/json" },
-        signal: searchOptions.signal,
-      });
-
-      if (!response.ok) {
-        const detail = (await response.text()).slice(0, 200);
-        const hint =
-          response.status === 403
-            ? " (the instance must enable the JSON format: settings -> formats: [\"html\", \"json\"])"
-            : "";
-        throw new Error(
-          `SearXNG search failed: HTTP ${response.status}${hint}${detail ? ` — ${detail}` : ""}`,
-        );
-      }
-
-      const data = (await response.json()) as SearxngApiResponse;
-      const mapped = (data.results ?? []).map((result) => ({
-        title: result.title ?? "",
-        url: result.url ?? "",
-        snippet: stripHtml(result.content ?? ""),
-      }));
-      return mapped.slice(0, searchOptions.maxResults ?? DEFAULT_MAX_RESULTS);
+    label: "SearXNG",
+    fetchImpl: options.fetchImpl,
+    buildRequest: (query) => ({
+      url: `${baseUrl}/search?${new URLSearchParams({ q: query, format: "json" })}`,
+      init: { headers: { Accept: "application/json" } },
+    }),
+    parseResponse: (data) => {
+      const { results } = data as SearxngApiResponse;
+      return (results ?? []).map((result) => toResult(result.title, result.url, result.content));
     },
-  };
+    errorHint: (status) =>
+      status === 403
+        ? ' (the instance must enable the JSON format: settings -> formats: ["html", "json"])'
+        : "",
+  });
 }
