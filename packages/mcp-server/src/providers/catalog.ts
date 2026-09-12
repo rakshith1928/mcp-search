@@ -109,3 +109,44 @@ export const ENV_BY_PROVIDER = Object.fromEntries(
 export const DEFAULT_RATE_LIMITS = Object.fromEntries(
   PROVIDERS.map((p): [ProviderName, RateLimitConfig] => [p.name, p.rateLimit]),
 ) as Record<ProviderName, RateLimitConfig>;
+
+/**
+ * Read a required environment variable, throwing a clear error when unset.
+ */
+export function requireEnv(
+  key: string,
+  env: Record<string, string | undefined> = process.env,
+): string {
+  const value = env[key];
+  if (!value) {
+    throw new Error(
+      `Missing required environment variable ${key}. Export it before using this provider.`,
+    );
+  }
+  return value;
+}
+
+/**
+ * Resolve a provider's API key: an explicitly provided key wins, otherwise the
+ * provider's environment variable is required.
+ */
+export function resolveApiKey(
+  provider: ProviderName,
+  explicit?: string,
+  env: Record<string, string | undefined> = process.env,
+): string {
+  if (explicit) return explicit;
+  return requireEnv(ENV_BY_PROVIDER[provider], env);
+}
+
+/**
+ * Non-throwing check used for parallel participant discovery: true iff the
+ * provider's required env var is set in `env` (Google's cx is validated at
+ * load). The env is injectable so tests never mutate globals.
+ */
+export function hasProviderConfig(
+  provider: ProviderName,
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return Boolean(env[ENV_BY_PROVIDER[provider]]);
+}

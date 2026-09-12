@@ -1,5 +1,5 @@
 import type { SearchProvider } from "../types.js";
-import { resolveApiKey } from "../util.js";
+import { resolveApiKey } from "./catalog.js";
 import { clampMaxResults, createHttpSearchProvider, toResult } from "./http-search.js";
 
 const BRAVE_ENDPOINT = "https://api.search.brave.com/res/v1/web/search";

@@ -1,7 +1,7 @@
 import type { ProviderName, SearchProvider } from "../types.js";
 import { PROVIDERS, type ProviderLoadOptions } from "./catalog.js";
 
-export { requireEnv } from "../util.js";
+export { requireEnv } from "./catalog.js";
 
 /**
  * The advertised provider set, derived from the catalog (ADR-0008).

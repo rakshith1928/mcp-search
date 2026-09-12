@@ -1,9 +1,8 @@
 import type { SearchOptions, SearchProvider, SearchResult } from "../types.js";
-import { loadOptionalSdk, resolveApiKey } from "../util.js";
+import { resolveApiKey } from "./catalog.js";
+import { loadOpenAISdk } from "./sdk.js";
 
 const OPENAI_MODEL = "gpt-4o";
-
-export const OPENAI_SDK_INSTALL_HINT = "OpenAI SDK not installed. Run: npm install openai";
 
 /** A `url_citation` annotation attached to output text. */
 interface OpenAIUrlCitation {
@@ -45,14 +44,6 @@ interface OpenAISdkModule {
   default: new (options: { apiKey: string }) => OpenAIClientLike;
 }
 
-async function dynamicImportSdk(): Promise<OpenAISdkModule> {
-  return (await import("openai")) as unknown as OpenAISdkModule;
-}
-
-function loadSdk(importSdk?: OpenAIProviderOptions["importSdk"]): Promise<OpenAISdkModule> {
-  return loadOptionalSdk(importSdk ?? dynamicImportSdk, OPENAI_SDK_INSTALL_HINT);
-}
-
 /**
  * OpenAI provider: server-side web search via the Responses API
  * (`tools: [{ type: "web_search" }]`). Each search is a full LLM API call —
@@ -64,7 +55,7 @@ export async function createOpenAIProvider(
   const apiKey = resolveApiKey("openai", options.apiKey);
   const client =
     options.client ??
-    new (await loadSdk(options.importSdk)).default({ apiKey });
+    new ((await loadOpenAISdk(options.importSdk)) as OpenAISdkModule).default({ apiKey });
 
   return {
     name: "openai",

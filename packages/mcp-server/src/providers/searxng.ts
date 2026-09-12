@@ -1,5 +1,5 @@
 import type { SearchProvider } from "../types.js";
-import { requireEnv } from "../util.js";
+import { requireEnv } from "./catalog.js";
 import { createHttpSearchProvider, toResult } from "./http-search.js";
 
 interface SearxngApiResponse {

@@ -1,12 +1,10 @@
 import type { SearchOptions, SearchProvider, SearchResult } from "../types.js";
-import { loadOptionalSdk, resolveApiKey } from "../util.js";
+import { resolveApiKey } from "./catalog.js";
+import { loadAnthropicSdk } from "./sdk.js";
 
 const ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
 const MAX_TOKENS = 4096;
 const MAX_USES = 8;
-
-export const ANTHROPIC_SDK_INSTALL_HINT =
-  "Anthropic SDK not installed. Run: npm install @anthropic-ai/sdk";
 
 /** A `web_search_tool_result` content block carries found pages or an error. */
 interface AnthropicContentBlock {
@@ -41,14 +39,6 @@ interface AnthropicSdkModule {
   default: new (options: { apiKey: string }) => AnthropicClientLike;
 }
 
-async function dynamicImportSdk(): Promise<AnthropicSdkModule> {
-  return (await import("@anthropic-ai/sdk")) as unknown as AnthropicSdkModule;
-}
-
-function loadSdk(importSdk?: AnthropicProviderOptions["importSdk"]): Promise<AnthropicSdkModule> {
-  return loadOptionalSdk(importSdk ?? dynamicImportSdk, ANTHROPIC_SDK_INSTALL_HINT);
-}
-
 function isWebSearchResultArray(content: unknown): content is Array<{ url?: string; title?: string }> {
   return Array.isArray(content);
 }
@@ -64,7 +54,7 @@ export async function createAnthropicProvider(
   const apiKey = resolveApiKey("anthropic", options.apiKey);
   const client =
     options.client ??
-    new (await loadSdk(options.importSdk)).default({ apiKey });
+    new ((await loadAnthropicSdk(options.importSdk)) as AnthropicSdkModule).default({ apiKey });
 
   return {
     name: "anthropic",

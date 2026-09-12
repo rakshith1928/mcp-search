@@ -1,21 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { routerConfigFromEnv } from "./cli.js";
+import { resolveRouterConfig } from "./router/config.js";
 import { createRouter, type Router, type RouterConfig } from "./router/index.js";
 import {
   OMNISEARCH_TOOL_DESCRIPTION,
   OMNISEARCH_TOOL_NAME,
   omnisearchInputSchema,
 } from "./tool-schema.js";
-
-/**
- * Merge partial config over defaults: an explicit primary wins, otherwise
- * OMNISEARCH_* environment variables apply.
- */
-function resolveRouterConfig(config: Partial<RouterConfig> = {}): RouterConfig {
-  const base = config.primary ? { primary: config.primary } : routerConfigFromEnv();
-  return { ...base, ...config };
-}
 
 /**
  * Build the omnisearch MCP server: one `omnisearch` tool backed by the

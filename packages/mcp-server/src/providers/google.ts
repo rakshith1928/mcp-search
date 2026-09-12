@@ -1,5 +1,5 @@
 import type { SearchProvider } from "../types.js";
-import { requireEnv, resolveApiKey } from "../util.js";
+import { requireEnv, resolveApiKey } from "./catalog.js";
 import { clampMaxResults, createHttpSearchProvider, toResult } from "./http-search.js";
 
 const GOOGLE_ENDPOINT = "https://www.googleapis.com/customsearch/v1";

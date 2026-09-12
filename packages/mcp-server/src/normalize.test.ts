@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { appendFailureNote, escapeMarkdownTitle, normalizeResults } from "./normalize.js";
+import { appendFailureNote, escapeMarkdownTitle, normalizeResults, stripHtml } from "./normalize.js";
 import type { SearchResult } from "./types.js";
 
 const twoResults: SearchResult[] = [
@@ -94,3 +94,24 @@ describe("escapeMarkdownTitle", () => {
     expect(markdown).toContain("1. [Plain title](https://example.com)");
   });
 });
+
+describe("stripHtml", () => {
+  test("removes tags", () => {
+    expect(stripHtml("<b>Bold</b> plain text")).toBe("Bold plain text");
+  });
+
+  test("decodes common HTML entities", () => {
+    expect(stripHtml("a &amp; b &#39;c&#39; &quot;d&quot; &lt;e&gt; &nbsp;f")).toBe(
+      "a & b 'c' \"d\" <e> f",
+    );
+  });
+
+  test("collapses whitespace and trims", () => {
+    expect(stripHtml("  a\n  b\tc  ")).toBe("a b c");
+  });
+
+  test("passes plain text through unchanged", () => {
+    expect(stripHtml("no markup here")).toBe("no markup here");
+  });
+});
+

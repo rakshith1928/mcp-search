@@ -19,10 +19,6 @@ export {
 } from "./rate-limiter.js";
 export * from "./providers/index.js";
 export { PROVIDERS, PROVIDER_NAMES, type ProviderKind, type ProviderLoadOptions } from "./providers/catalog.js";
-export {
-  ENV_BY_PROVIDER,
-  loadOptionalSdk,
-  requireEnv,
-  resolveApiKey,
-  stripHtml,
-} from "./util.js";
+export { ENV_BY_PROVIDER, requireEnv, resolveApiKey } from "./providers/catalog.js";
+export { loadOptionalSdk } from "./providers/sdk.js";
+export { stripHtml } from "./normalize.js";

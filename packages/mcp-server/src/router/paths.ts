@@ -2,7 +2,7 @@ import type { ProviderName, SearchResponse } from "../types.js";
 import { cacheKey, mergedCacheKey } from "../cache.js";
 import { appendFailureNote, normalizeResults } from "../normalize.js";
 import { AVAILABLE_PROVIDERS } from "../providers/index.js";
-import { hasProviderConfig } from "../util.js";
+import { hasProviderConfig } from "../providers/catalog.js";
 import { DEFAULT_MAX_RESULTS } from "../providers/http-search.js";
 import type { RouterConfig, RouterSearchOptions } from "./index.js";
 import { attemptWithRetry, type RouterContext } from "./attempts.js";
@@ -31,7 +31,7 @@ export function resolveParticipants(config: RouterConfig): ProviderName[] {
     }
     return unique;
   }
-  return AVAILABLE_PROVIDERS.filter(hasProviderConfig);
+  return AVAILABLE_PROVIDERS.filter((name) => hasProviderConfig(name));
 }
 
 /** Rank-preserving round-robin merge with first-wins URL dedupe, capped. */

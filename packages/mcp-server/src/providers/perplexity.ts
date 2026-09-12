@@ -1,11 +1,9 @@
 import type { SearchOptions, SearchProvider, SearchResult } from "../types.js";
-import { loadOptionalSdk, resolveApiKey } from "../util.js";
+import { resolveApiKey } from "./catalog.js";
+import { loadOpenAISdk, OPENAI_SDK_INSTALL_HINT } from "./sdk.js";
 
 const PERPLEXITY_BASE_URL = "https://api.perplexity.ai";
 const PERPLEXITY_MODEL = "sonar";
-
-export const OPENAI_SDK_INSTALL_HINT =
-  "OpenAI SDK not installed. Run: npm install openai (required for the Perplexity provider)";
 
 export interface PerplexityMessage {
   content?: string | null;
@@ -43,14 +41,6 @@ interface PerplexitySdkModule {
   default: new (options: { apiKey: string; baseURL: string }) => PerplexityClientLike;
 }
 
-async function dynamicImportSdk(): Promise<PerplexitySdkModule> {
-  return (await import("openai")) as unknown as PerplexitySdkModule;
-}
-
-function loadSdk(importSdk?: PerplexityProviderOptions["importSdk"]): Promise<PerplexitySdkModule> {
-  return loadOptionalSdk(importSdk ?? dynamicImportSdk, OPENAI_SDK_INSTALL_HINT);
-}
-
 /** Citations priority: search_results → annotations[].url_citation → bare citation URLs. */
 function extractResults(message: PerplexityMessage | undefined, maxResults?: number): SearchResult[] {
   const results: SearchResult[] = [];
@@ -83,9 +73,13 @@ export async function createPerplexityProvider(
   options: PerplexityProviderOptions = {},
 ): Promise<SearchProvider> {
   const apiKey = resolveApiKey("perplexity", options.apiKey);
+  const perplexityHint = `${OPENAI_SDK_INSTALL_HINT} (required for the Perplexity provider)`;
   const client =
     options.client ??
-    new (await loadSdk(options.importSdk)).default({ apiKey, baseURL: PERPLEXITY_BASE_URL });
+    new ((await loadOpenAISdk(options.importSdk, perplexityHint)) as PerplexitySdkModule).default({
+      apiKey,
+      baseURL: PERPLEXITY_BASE_URL,
+    });
 
   return {
     name: "perplexity",

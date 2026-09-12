@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_RATE_LIMITS, ENV_BY_PROVIDER, PROVIDERS, PROVIDER_NAMES } from "./catalog.js";
+import {
+  DEFAULT_RATE_LIMITS,
+  ENV_BY_PROVIDER,
+  hasProviderConfig,
+  PROVIDERS,
+  PROVIDER_NAMES,
+  resolveApiKey,
+} from "./catalog.js";
 import { AVAILABLE_PROVIDERS, PROVIDER_LOADERS } from "./index.js";
 
 const EXPECTED_ORDER = [
@@ -59,5 +66,34 @@ describe("provider catalog", () => {
       baseUrl: "https://searx.example.com",
     });
     expect(searxng.name).toBe("searxng");
+  });
+});
+
+describe("resolveApiKey", () => {
+  test("returns the explicit key when provided", () => {
+    expect(resolveApiKey("brave", "explicit-key")).toBe("explicit-key");
+  });
+
+  test("falls back to the provider's env var", () => {
+    expect(resolveApiKey("brave", undefined, { BRAVE_API_KEY: "env-key" })).toBe("env-key");
+  });
+
+  test("throws a clear error naming the env var when missing", () => {
+    expect(() => resolveApiKey("brave", undefined, {})).toThrow(/BRAVE_API_KEY/);
+  });
+
+  test("maps every provider to its documented env var", () => {
+    expect(ENV_BY_PROVIDER.brave).toBe("BRAVE_API_KEY");
+    expect(ENV_BY_PROVIDER.anthropic).toBe("ANTHROPIC_API_KEY");
+    expect(ENV_BY_PROVIDER.openai).toBe("OPENAI_API_KEY");
+    expect(ENV_BY_PROVIDER.moonshot).toBe("MOONSHOT_API_KEY");
+  });
+});
+
+describe("hasProviderConfig", () => {
+  test("true iff the provider's env var is set in the injected env", () => {
+    expect(hasProviderConfig("brave", {})).toBe(false);
+    expect(hasProviderConfig("brave", { BRAVE_API_KEY: "x" })).toBe(true);
+    expect(hasProviderConfig("google", { GOOGLE_API_KEY: "x" })).toBe(true);
   });
 });

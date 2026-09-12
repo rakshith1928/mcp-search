@@ -1,5 +1,29 @@
 import type { ProviderName, SearchResult } from "./types.js";
-import { stripHtml } from "./util.js";
+
+const HTML_ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+  "#39": "'",
+};
+
+/**
+ * Strip HTML tags and entities from provider snippets, collapsing whitespace.
+ */
+export function stripHtml(input: string): string {
+  if (!input) return "";
+  return input
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&(#?[a-zA-Z0-9]+);/g, (match, entity: string) => {
+      const decoded = HTML_ENTITIES[entity];
+      return decoded ?? match;
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 /**
  * Render search results as normalized markdown ready for an LLM context:

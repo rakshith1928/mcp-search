@@ -1,12 +1,10 @@
 import type { SearchOptions, SearchProvider, SearchResult } from "../types.js";
-import { loadOptionalSdk, resolveApiKey } from "../util.js";
+import { resolveApiKey } from "./catalog.js";
+import { loadOpenAISdk, OPENAI_SDK_INSTALL_HINT } from "./sdk.js";
 
 const MOONSHOT_BASE_URL = "https://api.moonshot.cn/v1";
 const MOONSHOT_MODEL = "kimi-k2-0711-preview";
 const MAX_TOOL_ROUNDS = 8;
-
-export const OPENAI_SDK_INSTALL_HINT =
-  "OpenAI SDK not installed. Run: npm install openai (required for the Moonshot provider)";
 
 export interface MoonshotToolCall {
   id?: string;
@@ -49,14 +47,6 @@ interface OpenAISdkModule {
   default: new (options: { apiKey: string; baseURL: string }) => MoonshotClientLike;
 }
 
-async function dynamicImportSdk(): Promise<OpenAISdkModule> {
-  return (await import("openai")) as unknown as OpenAISdkModule;
-}
-
-function loadSdk(importSdk?: MoonshotProviderOptions["importSdk"]): Promise<OpenAISdkModule> {
-  return loadOptionalSdk(importSdk ?? dynamicImportSdk, OPENAI_SDK_INSTALL_HINT);
-}
-
 /**
  * Acknowledge a `$web_search` builtin tool_call. Moonshot executes the search
  * server-side; the protocol expects the client to reply to the tool_call with
@@ -86,9 +76,13 @@ export async function createMoonshotProvider(
   options: MoonshotProviderOptions = {},
 ): Promise<SearchProvider> {
   const apiKey = resolveApiKey("moonshot", options.apiKey);
+  const moonshotHint = `${OPENAI_SDK_INSTALL_HINT} (required for the Moonshot provider)`;
   const client =
     options.client ??
-    new (await loadSdk(options.importSdk)).default({ apiKey, baseURL: MOONSHOT_BASE_URL });
+    new ((await loadOpenAISdk(options.importSdk, moonshotHint)) as OpenAISdkModule).default({
+      apiKey,
+      baseURL: MOONSHOT_BASE_URL,
+    });
 
   return {
     name: "moonshot",

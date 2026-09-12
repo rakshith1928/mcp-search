@@ -1,5 +1,5 @@
 import type { SearchProvider } from "../types.js";
-import { resolveApiKey } from "../util.js";
+import { resolveApiKey } from "./catalog.js";
 import { clampMaxResults, createHttpSearchProvider, toResult } from "./http-search.js";
 
 const TAVILY_ENDPOINT = "https://api.tavily.com/search";

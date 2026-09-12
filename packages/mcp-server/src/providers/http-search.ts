@@ -1,5 +1,5 @@
 import type { ProviderName, SearchOptions, SearchProvider, SearchResult } from "../types.js";
-import { stripHtml } from "../util.js";
+import { stripHtml } from "../normalize.js";
 
 export const DEFAULT_MAX_RESULTS = 10;
 

@@ -9,6 +9,9 @@ export const OMNISEARCH_TOOL_DESCRIPTION =
   "rate limiting, and fallback chains. Returns normalized markdown with " +
   "numbered results and a Sources footer.";
 
+/** Maximum results the tool may request — also the CLI --max cap. */
+export const MAX_TOOL_RESULTS = 20;
+
 /** Zod raw shape for the omnisearch tool, shared by the MCP server and plugins. */
 export const omnisearchInputSchema = {
   query: z.string().describe("The web search query"),
@@ -16,7 +19,7 @@ export const omnisearchInputSchema = {
     .number()
     .int()
     .min(1)
-    .max(20)
+    .max(MAX_TOOL_RESULTS)
     .optional()
     .describe("Maximum results to return (default 10)"),
   provider: z
